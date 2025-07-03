@@ -1,0 +1,22 @@
+{
+  "name": "simulationjs",
+  "version": "1.0.0",
+  "description": "",
+  "main": "hexify-sharp.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "hexify": "node hexify-sharp.js"
+
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Cephandross/SimulationJS.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/Cephandross/SimulationJS/issues"
+  },
+  "homepage": "https://github.com/Cephandross/SimulationJS#readme"
+}
