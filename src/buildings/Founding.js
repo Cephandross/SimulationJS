@@ -9,7 +9,7 @@ class TownCenter extends Building {
       costs:     { wood:200, stone:100 },
       hitpoints: 500,
       buildTime:  8,
-      footprint: 2
+      footprint: 1
     });
     
   }

@@ -77,7 +77,8 @@ class HexTileMap {
 
   generateRealisticWorld() {
     const radius = 125; // Larger world
-    console.log('Generating realistic hex world...');
+   
+
     
     // Step 1: Generate base maps
     this.generateElevationMap(radius);
@@ -221,7 +222,7 @@ const moisture = (moistureNoise1 + moistureNoise2 + 1) * 0.5;
     const oreTypes = [
       { type: 'iron', count: 10, color: 0x8B4513 },
       { type: 'copper', count: 8, color: 0xB87333 },
-      { type: 'silver', count: 6, color: 0xC0C0C0 },
+      { type: 'coal', count: 6, color: 0x2F2F2F },
       { type: 'gold', count: 4, color: 0xFFD700 }
     ];
     
@@ -401,7 +402,8 @@ const moisture = (moistureNoise1 + moistureNoise2 + 1) * 0.5;
   generateHexWorld() {
     const radius = 50; // Start with smaller world for testing
     
-    console.log('Generating hex world...');
+    
+    
     
     // Generate hexagonal area
     for (let q = -radius; q <= radius; q++) {
@@ -510,18 +512,8 @@ const moisture = (moistureNoise1 + moistureNoise2 + 1) * 0.5;
     console.log('Frame exists:', texture.frames[building.spriteFrame] !== undefined);
   }
   
-  // Create sprite with debug
-  try {
-    building.sprite = this.scene.add.sprite(pixelX, pixelY, building.spriteKey, building.spriteFrame)
-      .setOrigin(0.5, 0.5)
-      .setDepth(2)
-      .setTint(tint);
-    console.log('Sprite created successfully');
-    return building.sprite;
-  } catch (error) {
-    console.error('Sprite creation failed:', error);
-    return null;
-  }
+  
+  
 }
 
   /**
@@ -594,27 +586,32 @@ const moisture = (moistureNoise1 + moistureNoise2 + 1) * 0.5;
    * Validate resource gathering building placement
    */
   validateResourcePlacement(building, q, r) {
-    const tile = this.getTile(q, r);
-    if (!tile) return false;
-    
-    const resourceType = building.resourcetype;
-    
-    // Map resource types to required biomes
-    const resourceBiomes = {
-      'wood': ['forest'], // Will need to add forest biome
-      'stone': ['mountain'], // Will need to add mountain biome  
-      'food': ['grass', 'wheat', 'fertile'], // Farms can go on fertile land
-      'fish': ['water', 'shallow_water'], // Fishing
-      'coal': ['coal_deposit'],
-      'iron': ['iron_deposit'],
-      'gold': ['gold_deposit']
-    };
-    
-    const requiredBiomes = resourceBiomes[resourceType];
-    if (!requiredBiomes) return true; // No specific requirement
-    
-    return requiredBiomes.includes(tile.biome);
+  const tile = this.getTile(q, r);
+  if (!tile) return false;
+  
+  const resourceType = building.resourcetype;
+  
+  // Resource requirements
+  const resourceBiomes = {
+    'wood': ['forest', 'pine_forest', 'dark_forest'],
+    'stone': ['mountain', 'snow_mountain', 'hills'],
+    'food': ['grass', 'light_grass'], // Farms on grassland only
+    'coal': ['mountain', 'snow_mountain'], // Must be on mountains...
+    'iron': ['mountain', 'snow_mountain'],
+    'copper': ['mountain', 'snow_mountain'], 
+    'gold': ['mountain', 'snow_mountain']
+  };
+  
+  const requiredBiomes = resourceBiomes[resourceType];
+  if (!requiredBiomes) return true;
+  
+  // For ore, also check for deposit
+  if (['coal', 'iron', 'copper', 'gold'].includes(resourceType)) {
+    return requiredBiomes.includes(tile.biome) && tile.oreType === resourceType;
   }
+  
+  return requiredBiomes.includes(tile.biome);
+}
 
   /**
    * Calculate adjacency bonuses for buildings

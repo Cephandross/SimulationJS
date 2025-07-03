@@ -14,19 +14,17 @@ class MainScene extends Phaser.Scene {
   }
 
   preload() {
-  console.log('Loading hex assets...');
-  console.log('INDIVIDUAL_IMAGES:', INDIVIDUAL_IMAGES?.length || 'undefined');
-  console.log('SPRITE_SHEETS:', SPRITE_SHEETS?.length || 'undefined');
+ 
   
   // Load individual images
   INDIVIDUAL_IMAGES.forEach(img => {
-    console.log(`Loading image: ${img.key}`);
+    
     this.load.image(img.key, ASSET_PATH + img.file);
   });
   
   // Load sprite sheets
   SPRITE_SHEETS.forEach(sheet => {
-    console.log(`Loading spritesheet: ${sheet.key}`);
+   
     this.load.spritesheet(sheet.key, ASSET_PATH + sheet.file, {
       frameWidth: sheet.frameWidth,
       frameHeight: sheet.frameHeight
@@ -40,27 +38,11 @@ class MainScene extends Phaser.Scene {
     this.lastTick = 0;
     this.isDragging = false;
      // DEBUG: Test monster spritesheet loading
-  console.log('=== MONSTER SPRITE DEBUG ===');
-  const monsterTexture = this.textures.get('monsters_sheet');
-  console.log('Monster texture:', monsterTexture);
-  console.log('Frame total:', monsterTexture.frameTotal);
-  console.log('Available frames:', Object.keys(monsterTexture.frames));
-
-  // Test creating a sprite with frame 0
-  try {
-    const testSprite = this.add.sprite(100, 100, 'monsters_sheet', 0);
-    console.log('Test sprite frame 0: SUCCESS');
-  } catch (error) {
-    console.error('Test sprite frame 0: FAILED', error);
-  }
   
-  // Test creating a sprite with frame 66
-  try {
-    const testSprite = this.add.sprite(150, 100, 'monsters_sheet', 66);
-    console.log('Test sprite frame 66: SUCCESS');
-  } catch (error) {
-    console.error('Test sprite frame 66: FAILED', error);
-  }
+
+  
+
+  
     // Create hex map
     this.map = new HexTileMap(this);
     map = this.map;
@@ -87,126 +69,22 @@ class MainScene extends Phaser.Scene {
       this.registry.set('players', players);
       this.scene.launch('UIScene');
       
-      // For now, just spawn some chickens as test units
-      this.spawnTestUnits();
-       this.spawnTestBuildings();
+      players.forEach(p => p.initializeBase(this));
+      
     }
 
     // Input handlers
     this.setupInputHandlers();
     
-    console.log('Hex world created!');
-
+    
     
 
 
 
 };
-   spawnTestBuildings() {
-    if (typeof TownCenter === 'undefined') {
-    console.warn('Building classes not loaded yet');
-    return;}
-  // Spawn some test buildings around the center
-const buildingTests = [
-  { pos: [8, 45], type: TownCenter, player: 0 },    // Move away from center water
-  { pos: [46, 8], type: Barracks, player: 0 },
-  { pos: [10, 30], type: House, player: 0 },
-  { pos: [-18, -5], type: TownCenter, player: 1 },  // Opposite side
-  { pos: [-6, -8], type: Workshop, player: 1 },
-  { pos: [-10, -3], type: LumberCamp, player: 1 }
-];
-  
-  buildingTests.forEach(({ pos, type, player }) => {
-    const [q, r] = pos;
-    const tile = this.map.getTile(q, r);
-    if (tile && tile.isBuildable() && tile.isEmpty()) {
-      const building = new type([q, r]);
-      building.owner = players[player];
-      building.completed = true;
-      
-      if (this.map.placeBuildingState(building, q, r)) {
-        building.sprite = this.map.placeBuildingSprite(building, q, r, building.owner.color);
-        players[player].buildings.push(building);
-        console.log(`Placed ${building.type} for ${building.owner.name} at [${q},${r}]`);
-      }
-    }
-  });
-}
-
-createSpriteInspector() {
-  console.log('Creating sprite frame inspector...');
-  
-  const monsterTexture = this.textures.get('monsters_sheet');
-  if (!monsterTexture) {
-    console.error('Monster texture not found');
-    return;
-  }
-  
-  const frameWidth = 32;
-  const frameHeight = 32;
-  const scale = 3; // Make it bigger for easier viewing
-  const startX = 50; // Position on screen
-  const startY = 50;
-  
-  // Calculate grid dimensions from the source image
-  const sourceWidth = monsterTexture.source[0].width;
-  const sourceHeight = monsterTexture.source[0].height;
-  const cols = Math.floor(sourceWidth / frameWidth);
-  const rows = Math.floor(sourceHeight / frameHeight);
-  
-  console.log(`Monster sheet: ${sourceWidth}x${sourceHeight}, Grid: ${cols}x${rows}, Total frames: ${cols * rows}`);
-  
-  // Create a background for the inspector
-  const bg = this.add.rectangle(
-    startX + (cols * frameWidth * scale) / 2,
-    startY + (rows * frameHeight * scale) / 2,
-    cols * frameWidth * scale + 20,
-    rows * frameHeight * scale + 20,
-    0x000000,
-    0.8
-  ).setDepth(100);
-  
-  // Create sprites for each frame with frame numbers
-  for (let row = 0; row < rows; row++) {
-    for (let col = 0; col < cols; col++) {
-      const frameIndex = row * cols + col;
-      
-      if (frameIndex >= monsterTexture.frameTotal) break;
-      
-      const x = startX + col * frameWidth * scale + (frameWidth * scale / 2);
-      const y = startY + row * frameHeight * scale + (frameHeight * scale / 2);
-      
-      // Create the sprite
-      const sprite = this.add.sprite(x, y, 'monsters_sheet', frameIndex)
-        .setScale(scale)
-        .setDepth(101);
-      
-      // Add frame number overlay
-      const text = this.add.text(x, y, frameIndex.toString(), {
-        fontSize: '12px',
-        fill: '#ffff00',
-        backgroundColor: '#000000',
-        padding: { x: 2, y: 1 }
-      })
-      .setOrigin(0.5, 0.5)
-      .setDepth(102);
-      
-      // Make sprites clickable to log frame info
-      sprite.setInteractive();
-      sprite.on('pointerdown', () => {
-        console.log(`Frame ${frameIndex}: Row ${row}, Col ${col}`);
-        console.log(`Use frame ${frameIndex} for buildings`);
-      });
-    }
-  }}
+   
 
 
-  closeInspector() {
-  if (this.inspectorObjects) {
-    this.inspectorObjects.forEach(obj => obj.destroy());
-    this.inspectorObjects = null;
-  }
-  }
   
 
 
