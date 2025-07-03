@@ -8,39 +8,39 @@
   <!-- 1) Phaser engine -->
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.js"></script>
   
-
-  <!-- 2) Core config & utilities -->
+  <!-- 2) External libraries -->
+  <script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
+  
+  <!-- 3) Core config & utilities -->
   <script src="src/config.js"></script>
   <script src="src/utils.js"></script>
 
-  <!-- 3) Data & logic: player -->
+  <!-- 4) Base classes FIRST -->
+  <script src="src/buildings/Building.js"></script>
+  <script src="src/units/Unit.js"></script>
+
+  <!-- 5) Hex map system (needs Building class) -->
+  <script src="src/HexMap.js"></script>
+
+  <!-- 6) Player logic -->
   <script src="src/player.js"></script>
 
-  <!-- 4) Building classes (order doesn’t matter so long as Building.js is first) -->
-  <script src="src/buildings/Building.js"></script>
+  <!-- 7) Building subclasses -->
   <script src="src/buildings/Founding.js"></script>
   <script src="src/buildings/Population.js"></script>
   <script src="src/buildings/Training.js"></script>
   <script src="src/buildings/Gathering.js"></script>
   <script src="src/buildings/Crafting.js"></script>
 
-  <!-- 5) Unit classes -->
-  <script src="src/units/Unit.js"></script>
+  <!-- 8) Unit subclasses -->
   <script src="src/units/Infantry.js"></script>
   <script src="src/units/Cavalry.js"></script>
   <script src="src/units/Support.js"></script>
   <script src="src/units/Utility.js"></script>
 
-  <!-- 6) Your two scenes -->
-   
-    <!-- after Phaser, before Map.js -->
-    <script src="https://cdn.jsdelivr.net/npm/simplex-noise@2.4.0/simplex-noise.min.js"></script>
-    <script src="src/Map.js"></script>
-  
-
-  <script src="src/UIScene.js"></script>  <!-- defines window.UIScene -->
-
-  <script src="src/main.js"></script>    <!-- defines window.MainScene -->
+  <!-- 9) Scenes -->
+  <script src="src/UIScene.js"></script>
+  <script src="src/main.js"></script>
  
   <style>
     body { margin: 0; overflow: hidden; }
@@ -48,7 +48,7 @@
   </style>
 </head>
 <body>
-  <!-- 7) Bootstrap the game -->
+  <!-- 10) Bootstrap the game -->
   <script>
     window.onload = () => {
       new Phaser.Game({
@@ -58,7 +58,7 @@
           mode: Phaser.Scale.FIT,
           autoCenter: Phaser.Scale.CENTER_BOTH,
           width: 1600,
-          height: 800
+          height: 1000
         },
         scene: [ window.MainScene, window.UIScene ]
       });

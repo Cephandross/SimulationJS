@@ -10,8 +10,7 @@ class House extends Building {
       hitpoints: 100,
       buildTime:  4
     });
-    this.spriteKey   = 'Houses';
-    this.spriteFrame = 0;
+   
   }
 }
 window.House = House;
@@ -26,8 +25,7 @@ class LogCabin extends Building {
       hitpoints: 150,
       buildTime:  6
     });
-    this.spriteKey   = 'Houses';
-    this.spriteFrame = 3;
+   
   }
 }
 window.LogCabin = LogCabin;

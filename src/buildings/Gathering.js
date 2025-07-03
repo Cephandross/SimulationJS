@@ -12,8 +12,7 @@ class FruitGatherer extends Building {
       resourcetype: "food",
       resourceamount: 2
     });
-    this.spriteKey   = 'Resources';
-    this.spriteFrame = 0;
+   
   }
 }
 window.FruitGatherer = FruitGatherer;
@@ -30,8 +29,7 @@ class SeedsGatherer extends Building {
       resourcetype: "seeds",
       resourceamount: 1
     });
-    this.spriteKey   = 'Resources';
-    this.spriteFrame = 1;
+   
   }
 }
 window.SeedsGatherer = SeedsGatherer;
@@ -48,8 +46,7 @@ class Farmland extends Building {
       resourceamount: 50,
       resourcetype: "food"
     });
-    this.spriteKey   = 'Resources';
-    this.spriteFrame = 1;
+    
   }
 }
 window.Farmland = Farmland;
@@ -66,8 +63,7 @@ class LumberCamp extends Building {
       resourcetype: "wood",
       resourceamount: 5
     });
-    this.spriteKey   = 'Resources';
-    this.spriteFrame = 3;  // pick an appropriate frame
+   
   }
 }
 window.LumberCamp = LumberCamp;
@@ -84,8 +80,7 @@ class Quarry extends Building {
       resourceamount: 5,
       resourcetype: "stone"
     });
-    this.spriteKey   = 'Resources';
-    this.spriteFrame = 4;  // pick an appropriate frame
+  
   }
 }
 window.Quarry = Quarry;
@@ -102,8 +97,7 @@ class CoalGatherer extends Building {
       resourceamount: 1,
       resourcetype: "coal"
     });
-    this.spriteKey   = 'Resources';
-    this.spriteFrame = 5;
+    
   }
 }
 window.CoalGatherer = CoalGatherer;
@@ -120,8 +114,7 @@ class IronGatherer extends Building {
       resourceamount: 1,
       resourcetype: "iron"
     });
-    this.spriteKey   = 'Resources';
-    this.spriteFrame = 6;
+   
   }
 }
 window.IronGatherer = IronGatherer;
@@ -139,8 +132,7 @@ class CopperGatherer extends Building {
       resourceamount: 1,
       resourcetype: "copper"
     });
-    this.spriteKey   = 'Resources';
-    this.spriteFrame = 7;
+    
   }
 }
 window.CopperGatherer = CopperGatherer;
@@ -158,8 +150,7 @@ class GoldGatherer extends Building {
       resourceamount: 5,
       resourcetype: "gold"
     });
-    this.spriteKey   = 'Resources';
-    this.spriteFrame = 8;
+    
   }
 }
 window.GoldGatherer = GoldGatherer;

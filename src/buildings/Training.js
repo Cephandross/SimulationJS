@@ -10,8 +10,7 @@ class Barracks extends Building {
       hitpoints: 200,
       buildTime:  4
     });
-    this.spriteKey   = 'Barracks';
-    this.spriteFrame = 0;       // infantry trainer
+    
   }
 }
 window.Barracks = Barracks;
@@ -26,8 +25,7 @@ class Stables extends Building {
       hitpoints: 200,
       buildTime:  5
     });
-    this.spriteKey   = 'Workshops';  
-    this.spriteFrame = 1;       // pick an available frame for cavalry stable
+   
   }
 }
 window.Stables = Stables;
@@ -42,8 +40,7 @@ class Workshop extends Building {
       hitpoints: 150,
       buildTime:  4
     });
-    this.spriteKey   = 'Workshops';
-    this.spriteFrame = 0;       // generic workshop
+   
   }
 }
 window.Workshop = Workshop;

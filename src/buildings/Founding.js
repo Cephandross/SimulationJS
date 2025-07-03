@@ -11,8 +11,7 @@ class TownCenter extends Building {
       buildTime:  8,
       footprint: 2
     });
-    this.spriteKey   = 'Keep';
-    this.spriteFrame = 0;   // base
+    
   }
 }
 window.TownCenter = TownCenter;
@@ -27,8 +26,7 @@ class Village extends Building {
       hitpoints: 750,
       buildTime: 10
     });
-    this.spriteKey   = 'Keep';
-    this.spriteFrame = 1;   // upgrade level 1
+   
   }
 }
 window.Village = Village;
@@ -43,8 +41,7 @@ class City extends Building {
       hitpoints:1000,
       buildTime: 12
     });
-    this.spriteKey   = 'Keep';
-    this.spriteFrame = 2;   // upgrade level 2
+    
   }
 }
 window.City = City;

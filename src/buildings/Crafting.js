@@ -10,8 +10,7 @@ class Smelter extends Building {
       hitpoints: 100,
       buildTime:  5
     });
-    this.spriteKey   = 'Workshops';
-    this.spriteFrame = 0;
+    
   }
 }
 window.Smelter = Smelter;
@@ -26,8 +25,7 @@ class Bakery extends Building {
       hitpoints:  80,
       buildTime:  4
     });
-    this.spriteKey   = 'Workshops';
-    this.spriteFrame = 1;
+   
   }
 }
 window.Bakery = Bakery;
@@ -42,8 +40,7 @@ class Blacksmith extends Building {
       hitpoints:  80,
       buildTime:  4
     });
-    this.spriteKey   = 'Workshops';
-    this.spriteFrame = 2;
+   
   }
 }
 window.Blacksmith = Blacksmith;

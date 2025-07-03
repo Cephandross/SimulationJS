@@ -1,5 +1,38 @@
 // src/buildings/Building.js
 
+
+const BUILDING_SPRITES = {
+  // Founding Buildings - use powerful creatures
+  'TownCenter': { key: 'monsters_sheet', frame: 74 },    // Blue elephant-like creature
+  'Village': { key: 'monsters_sheet', frame: 50 },       // Lich/skeleton
+  'City': { key: 'monsters_sheet', frame: 132 },         // Angel (bottom area)
+  
+  // Population Buildings - use smaller/peaceful creatures  
+  'House': { key: 'monsters_sheet', frame: 84 },         // Centaur
+  'LogCabin': { key: 'monsters_sheet', frame: 96 },      // Forest creature
+  
+  // Training Buildings - use military monsters
+  'Barracks': { key: 'monsters_sheet', frame: 3 },       // Orc warrior
+  'Stables': { key: 'monsters_sheet', frame: 84 },       // Centaur (horse-like)
+  'Workshop': { key: 'monsters_sheet', frame: 87 },      // Rock golem
+  
+  // Gathering Buildings
+  'FruitGatherer': { key: 'monsters_sheet', frame: 96 }, // Nature creature
+  'SeedsGatherer': { key: 'monsters_sheet', frame: 97 }, // Plant creature  
+  'Farmland': { key: 'monsters_sheet', frame: 144 },     // Mushroom creature
+  'LumberCamp': { key: 'monsters_sheet', frame: 87 },    // Rock golem
+  'Quarry': { key: 'monsters_sheet', frame: 87 },        // Rock golem
+  'CoalGatherer': { key: 'monsters_sheet', frame: 37 },  // Fire demon
+  'IronGatherer': { key: 'monsters_sheet', frame: 87 },  // Rock golem
+  'CopperGatherer': { key: 'monsters_sheet', frame: 87 }, // Rock golem
+  'GoldGatherer': { key: 'monsters_sheet', frame: 74 },  // Blue creature (valuable)
+  
+  // Crafting Buildings
+  'Smelter': { key: 'monsters_sheet', frame: 37 },       // Fire demon
+  'Bakery': { key: 'monsters_sheet', frame: 144 },       // Mushroom
+  'Blacksmith': { key: 'monsters_sheet', frame: 87 }     // Rock golem
+};
+
 class Building {
   constructor({
     type,
@@ -27,9 +60,20 @@ class Building {
     this.resourcetype   = resourcetype;   // ← now set from subclass
     this.resourceamount = resourceamount;  // ← ditto
     this.owner          = null;
+ const spriteInfo = BUILDING_SPRITES[type];
+    if (spriteInfo) {
+      this.spriteKey = spriteInfo.key;
+      this.spriteFrame = spriteInfo.frame;
+    } else {
+      // Fallback for unmapped buildings
+      this.spriteKey = 'monsters_sheet';
+      this.spriteFrame = 87; // Default to rock golem
+      console.warn(`No sprite mapping for building type: ${type}`);
+    }
+    
   }
 
-
+  
   tickBuild() {
     if (this.completed) return;
       this.ticksBuild++;
@@ -49,7 +93,7 @@ class Building {
     return this.hitpoints <= 0;
   }
 
-    /** NEW: spawn a unit on a free tile next to this building */
+   
     spawnUnit(UnitClass, scene) {
       if (!this.completed) return null;
   

@@ -26,6 +26,16 @@ class Unit {
     this.sprite       = null;       // filled by spawnUnit
     this.destination  = null;       // set by moveTo()
     this.onArrive     = null;       // optional callback
+
+    const spriteInfo = UNIT_SPRITES[type];
+    if (spriteInfo) {
+      this.spriteKey = spriteInfo.key;
+      this.spriteFrame = spriteInfo.frame;
+    } else {
+      // Fallback
+      this.spriteKey = 'ChickenForward1';
+      this.spriteFrame = 0;
+    }
   }
 
   isAlive() {
