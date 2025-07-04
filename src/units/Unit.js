@@ -27,15 +27,27 @@ class Unit {
     this.destination  = null;       // set by moveTo()
     this.onArrive     = null;       // optional callback
 
-    const spriteInfo = UNIT_SPRITES[type];
-    if (spriteInfo) {
-      this.spriteKey = spriteInfo.key;
-      this.spriteFrame = spriteInfo.frame;
-    } else {
-      // Fallback
-      this.spriteKey = 'ChickenForward1';
-      this.spriteFrame = 0;
-    }
+    // Use rogues sheet for units (7x7 grid, some frames empty)
+const unitSpriteMap = {
+  'Worker': { key: 'rogues_sheet', frame: 37 },        // 6th row worker
+  'Builder': { key: 'rogues_sheet', frame: 36 },       // 6th row builder (as specified)
+  'FootSoldier': { key: 'rogues_sheet', frame: 0 },    // Top-left warrior
+  'Shieldbearer': { key: 'rogues_sheet', frame: 8 },   // 2nd row armored
+  'Healer': { key: 'rogues_sheet', frame: 24 },        // 4th row mage/healer
+  'LightRider': { key: 'rogues_sheet', frame: 16 },    // 3rd row rider
+  'HeavyCavalry': { key: 'rogues_sheet', frame: 17 },  // 3rd row heavy rider
+  'Engineer': { key: 'rogues_sheet', frame: 38 }       // 6th row engineer
+};
+
+const spriteInfo = unitSpriteMap[type];
+if (spriteInfo) {
+  this.spriteKey = spriteInfo.key;
+  this.spriteFrame = spriteInfo.frame;
+} else {
+  // Fallback to a basic character
+  this.spriteKey = 'rogues_sheet';
+  this.spriteFrame = 0; // Default to top-left
+}
   }
 
   isAlive() {

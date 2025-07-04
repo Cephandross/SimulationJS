@@ -353,38 +353,33 @@ const moisture = (moistureNoise1 + moistureNoise2 + 1) * 0.5;
     this.tiles.set(key, tile);
   }
 
-  placeUnitSprite(unit, q, r, tint) {
-    const [x, y] = hexToPixel(q, r);
-    
-    // Try to use the unit's sprite if it has one
-    if (unit.spriteKey) {
-      try {
-        return this.scene.add.sprite(x, y, unit.spriteKey, unit.spriteFrame || 0)
-          .setOrigin(0.5, 0.5)
-          .setDepth(3)
-          .setTint(tint);
-      } catch (error) {
-        console.warn(`Unit sprite ${unit.spriteKey} failed:`, error);
-      }
+ placeUnitSprite(unit, q, r, tint) {
+  const [x, y] = hexToPixel(q, r);
+  
+  console.log('=== UNIT SPRITE DEBUG ===');
+  console.log('Unit type:', unit.type);
+  console.log('Sprite key:', unit.spriteKey);
+  console.log('Sprite frame:', unit.spriteFrame);
+  
+  // Try to use the unit's sprite if it has one
+  if (unit.spriteKey) {
+    try {
+      const sprite = this.scene.add.sprite(x, y, unit.spriteKey, unit.spriteFrame || 0)
+        .setOrigin(0.5, 0.5)
+        .setDepth(3)
+        .setTint(tint);
+      console.log('✅ Unit sprite created successfully');
+      return sprite;
+    } catch (error) {
+      console.warn(`Unit sprite ${unit.spriteKey} failed:`, error);
     }
-    
-    // Try to use chicken sprite if it's a worker/builder
-    if (['Worker', 'Builder'].includes(unit.type)) {
-      try {
-        return this.scene.add.sprite(x, y, 'ChickenForward1')
-          .setOrigin(0.5, 0.5)
-          .setDepth(3)
-          .setTint(tint);
-      } catch (error) {
-        console.warn('Chicken sprite failed, using circle');
-      }
-    }
-    
-    // Fallback to colored circle
-    return this.scene.add.circle(x, y, 15, tint)
-      .setDepth(3);
+  }
+  
+  // Fallback to colored circle
+  console.log('Using fallback circle for unit');
+  return this.scene.add.circle(x, y, 15, tint)
+    .setDepth(3);
 }
-
   markForUpdate(tile) {
     if (!tile.needsUpdating) {
       tile.needsUpdating = true;
@@ -494,27 +489,48 @@ const moisture = (moistureNoise1 + moistureNoise2 + 1) * 0.5;
    * Place a building sprite properly centered on hex tile
    * 32x32 building sprite centered on 64x64 hex tile
    */
+/**
+   * Place a building sprite properly centered on hex tile
+   * 32x32 building sprite centered on 64x64 hex tile
+   */
   placeBuildingSprite(building, q, r, tint) {
-  const [pixelX, pixelY] = hexToPixel(q, r);
-  
-  // DEBUG: Log building sprite details
-  console.log('=== BUILDING SPRITE DEBUG ===');
-  console.log('Building type:', building.type);
-  console.log('Sprite key:', building.spriteKey);
-  console.log('Sprite frame:', building.spriteFrame);
-  console.log('Position:', pixelX, pixelY);
-  console.log('Tint:', tint);
-  
-  // Check if sprite key exists
-  const texture = this.scene.textures.get(building.spriteKey);
-  console.log('Texture exists:', !!texture);
-  if (texture) {
-    console.log('Frame exists:', texture.frames[building.spriteFrame] !== undefined);
+    const [pixelX, pixelY] = hexToPixel(q, r);
+    
+    // DEBUG: Log building sprite details
+    console.log('=== BUILDING SPRITE DEBUG ===');
+    console.log('Building type:', building.type);
+    console.log('Sprite key:', building.spriteKey);
+    console.log('Sprite frame:', building.spriteFrame);
+    console.log('Position:', pixelX, pixelY);
+    console.log('Tint:', tint);
+    
+    // Check if sprite key exists
+    const texture = this.scene.textures.get(building.spriteKey);
+    console.log('Texture exists:', !!texture);
+    if (texture) {
+      console.log('Frame exists:', texture.frames[building.spriteFrame] !== undefined);
+    }
+    
+    // Actually create and return the sprite!
+    try {
+      const sprite = this.scene.add.sprite(pixelX, pixelY, building.spriteKey, building.spriteFrame)
+        .setOrigin(0.5, 0.5)
+        .setDepth(2)
+        .setTint(tint);
+      
+      console.log('✅ Building sprite created successfully');
+      return sprite;
+    } catch (error) {
+      console.error('❌ Failed to create building sprite:', error);
+      
+      // Fallback to colored rectangle
+      const fallbackSprite = this.scene.add.rectangle(pixelX, pixelY, 32, 32, tint)
+        .setDepth(2);
+      
+      console.log('Created fallback rectangle instead');
+      return fallbackSprite;
+    }
   }
-  
-  
-  
-}
 
   /**
    * Enhanced building placement with adjacency checking
@@ -585,33 +601,48 @@ const moisture = (moistureNoise1 + moistureNoise2 + 1) * 0.5;
   /**
    * Validate resource gathering building placement
    */
+  /**
+   * Validate resource gathering building placement
+   */
   validateResourcePlacement(building, q, r) {
-  const tile = this.getTile(q, r);
-  if (!tile) return false;
-  
-  const resourceType = building.resourcetype;
-  
-  // Resource requirements
-  const resourceBiomes = {
-    'wood': ['forest', 'pine_forest', 'dark_forest'],
-    'stone': ['mountain', 'snow_mountain', 'hills'],
-    'food': ['grass', 'light_grass'], // Farms on grassland only
-    'coal': ['mountain', 'snow_mountain'], // Must be on mountains...
-    'iron': ['mountain', 'snow_mountain'],
-    'copper': ['mountain', 'snow_mountain'], 
-    'gold': ['mountain', 'snow_mountain']
-  };
-  
-  const requiredBiomes = resourceBiomes[resourceType];
-  if (!requiredBiomes) return true;
-  
-  // For ore, also check for deposit
-  if (['coal', 'iron', 'copper', 'gold'].includes(resourceType)) {
-    return requiredBiomes.includes(tile.biome) && tile.oreType === resourceType;
+    const tile = this.getTile(q, r);
+    if (!tile) return false;
+    
+    const resourceType = building.resourcetype;
+    const biome = tile.biome;
+    
+    // Resource requirements
+    const resourceBiomes = {
+      'wood': ['forest', 'pine_forest', 'dark_forest'],
+      'stone': ['mountain', 'snow_mountain', 'hills'],
+      'food': ['grass', 'light_grass'],
+      'seeds': ['grass', 'light_grass'],
+      'coal': ['mountain', 'snow_mountain'],
+      'iron': ['mountain', 'snow_mountain'],
+      'copper': ['mountain', 'snow_mountain'], 
+      'gold': ['mountain', 'snow_mountain']
+    };
+    
+    const requiredBiomes = resourceBiomes[resourceType];
+    if (!requiredBiomes) return true; // Unknown resource type passes
+    
+    // Check basic biome requirement
+    if (!requiredBiomes.includes(biome)) {
+      console.warn(`❌ ${building.type} requires ${requiredBiomes.join('/')} but tile is ${biome}`);
+      return false;
+    }
+    
+    // For ore, also check for specific deposit
+    if (['coal', 'iron', 'copper', 'gold'].includes(resourceType)) {
+      if (tile.oreType !== resourceType) {
+        console.warn(`❌ ${building.type} requires ${resourceType} deposit but tile has ${tile.oreType || 'none'}`);
+        return false;
+      }
+    }
+    
+    console.log(`✅ ${building.type} placement valid on ${biome}${tile.oreType ? ` (${tile.oreType})` : ''}`);
+    return true;
   }
-  
-  return requiredBiomes.includes(tile.biome);
-}
 
   /**
    * Calculate adjacency bonuses for buildings

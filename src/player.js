@@ -67,23 +67,22 @@ build(BuildingClass, [tx, ty], scene) {
   const costs    = building.costs;
 
   // 2) tile‐type gating
+  // 2) tile‐type gating
   if (building.category !== 'Gathering') {
-    // only pure grass/sand, no overlays
-    if (!['grass','sand'].includes(tile.tiletype)
-     || ['forest','mountain'].includes(tile.biome)
-     || tile.biome.endsWith('_deposit')) {
+    // Non-gathering buildings need flat buildable terrain
+    const buildableTerrains = ['grass', 'light_grass', 'rough'];
+    if (!buildableTerrains.includes(tile.biome) || 
+        ['forest', 'mountain'].includes(tile.biome) ||
+        tile.biome.endsWith('_deposit')) {
+      console.warn(`❌ Cannot build ${building.type} on ${tile.biome}`);
       return false;
     }
   } else {
-    // Gathering must match its resource
-    const R = building.resourcetype;
-    if (R === 'wood' && tile.biome !== 'forest')      return false;
-    if (R === 'stone' && tile.biome !== 'mountain')   return false;
-    if (['coal','iron','copper','gold'].includes(R)
-        && tile.biome !== `${R}_deposit`)             return false;
-    // e.g. food/seeds can go anywhere—or tighten as you wish
+    // Gathering buildings must match their resource requirements
+    if (!scene.map.validateResourcePlacement(building, tx, ty)) {
+      return false;
+    }
   }
-
   // 3) cost check & deduct
   for (let [res, amt] of Object.entries(costs)) {
     if ((this.resources[res] || 0) < amt) return false;
@@ -94,7 +93,7 @@ build(BuildingClass, [tx, ty], scene) {
   building.owner = this;
   this.buildings.push(building);
   map.placeBuildingState(building, tx, ty);
-  map.placeBuildingSprite(building, tx, ty, this.color);
+  building.sprite = map.placeBuildingSprite(building, tx, ty, this.color);
 
   return true;
 }
@@ -113,7 +112,16 @@ build(BuildingClass, [tx, ty], scene) {
     // 1) Produce from Gathering buildings
     this.buildings.forEach(b => {
       if (b.category === 'Gathering' && b.completed) {
-        b.gatherUpdate();
+        // Validate building is on correct terrain
+        const [bx, by] = b.coords;
+        const tile = this.scene?.map?.getTile(bx, by);
+        
+        if (tile && this.validateGatheringTerrain(b, tile)) {
+          b.gatherUpdate();
+          console.log(`🌾 ${b.type} gathered ${b.resourceamount} ${b.resourcetype} for ${this.name}`);
+        } else {
+          console.warn(`⚠️ ${b.type} at [${bx},${by}] on wrong terrain: ${tile?.biome}`);
+        }
       }
     });
 
@@ -183,6 +191,38 @@ build(BuildingClass, [tx, ty], scene) {
     return false;
   }
 
+
+  /**
+   * Validate gathering building is on correct terrain
+   */
+  validateGatheringTerrain(building, tile) {
+    const resourceType = building.resourcetype;
+    const biome = tile.biome;
+    
+    const resourceBiomes = {
+      'wood': ['forest', 'pine_forest', 'dark_forest'],
+      'stone': ['mountain', 'snow_mountain', 'hills'],
+      'food': ['grass', 'light_grass'],
+      'seeds': ['grass', 'light_grass'],
+      'coal': ['mountain', 'snow_mountain'],
+      'iron': ['mountain', 'snow_mountain'],
+      'copper': ['mountain', 'snow_mountain'], 
+      'gold': ['mountain', 'snow_mountain']
+    };
+    
+    const requiredBiomes = resourceBiomes[resourceType];
+    if (!requiredBiomes) return true; // Unknown resource type passes
+    
+    // Check basic biome requirement
+    if (!requiredBiomes.includes(biome)) return false;
+    
+    // For ore, also check for specific deposit
+    if (['coal', 'iron', 'copper', 'gold'].includes(resourceType)) {
+      return tile.oreType === resourceType;
+    }
+    
+    return true;
+  }
 
     /**
 /**
@@ -292,6 +332,75 @@ findNearbyResources(map, startQ, startR, range) {
   
   // Place guaranteed gathering buildings
   this.placeStartingGatherers(scene, startInfo.resources);
+
+  // Spawn a bootstrap builder next to town center
+  this.spawnBootstrapBuilder(scene, [startQ, startR]);
+}
+
+/**
+ * Spawn a builder next to town center and send it to build lumber camp
+ */
+spawnBootstrapBuilder(scene, [townQ, townR]) {
+  // Find empty tile adjacent to town center
+  const neighbors = scene.map.getNeighbors(townQ, townR);
+  const spawnTile = neighbors.find(tile => tile && tile.isEmpty() && tile.isPassable());
+  
+  if (!spawnTile) {
+    console.warn(`❌ ${this.name}: No space to spawn builder near town center`);
+    return;
+  }
+  
+  // Create builder
+  const builder = new Builder([spawnTile.q, spawnTile.r]);
+  builder.owner = this;
+  this.addUnit(builder);
+  
+  // Place on map
+  spawnTile.placeUnit(builder);
+  builder.sprite = scene.map.placeUnitSprite(builder, spawnTile.q, spawnTile.r, this.color);
+  
+  // Find nearest forest for lumber camp
+  const nearestForest = this.findNearestForest(scene.map, spawnTile.q, spawnTile.r);
+  if (nearestForest) {
+    console.log(`🔨 ${this.name}: Builder heading to forest at [${nearestForest[0]}, ${nearestForest[1]}]`);
+    builder.mission = { type: 'build', target: nearestForest, buildingClass: LumberCamp };
+    builder.moveTo(nearestForest, scene);
+    builder.onArrive = () => {
+      console.log(`🏗️ ${this.name}: Builder arrived, attempting to build LumberCamp`);
+      if (this.build(LumberCamp, nearestForest, scene)) {
+        console.log(`✅ ${this.name}: LumberCamp built successfully!`);
+      } else {
+        console.log(`❌ ${this.name}: Failed to build LumberCamp`);
+      }
+    };
+  }
+}
+
+/**
+ * Find nearest forest tile within reasonable range
+ */
+findNearestForest(map, startQ, startR) {
+  const maxRange = 30;
+  const forestBiomes = ['forest', 'pine_forest', 'dark_forest'];
+  
+  for (let range = 1; range <= maxRange; range++) {
+    // Search in expanding rings
+    for (let q = startQ - range; q <= startQ + range; q++) {
+      for (let r = startR - range; r <= startR + range; r++) {
+        // Only check ring edge
+        const distance = Math.abs(q - startQ) + Math.abs(r - startR) + Math.abs(-q - r + startQ + startR);
+        if (distance / 2 !== range) continue;
+        
+        const tile = map.getTile(q, r);
+        if (tile && forestBiomes.includes(tile.biome) && tile.isEmpty()) {
+          return [q, r];
+        }
+      }
+    }
+  }
+  
+  console.warn(`❌ ${this.name}: No forest found within ${maxRange} tiles`);
+  return null;
 }
 
 placeStartingGatherers(scene, nearbyResources) {

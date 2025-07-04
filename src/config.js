@@ -333,6 +333,12 @@ const SPRITE_SHEETS = [
     file: 'monsters.png',
     frameWidth: 32,
     frameHeight: 32
+  },
+  {
+    key: 'rogues_sheet',
+    file: 'rogues.png',
+    frameWidth: 32,
+    frameHeight: 32
   }
 ];
 
