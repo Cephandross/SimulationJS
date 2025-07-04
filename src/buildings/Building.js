@@ -60,16 +60,17 @@ class Building {
     this.resourcetype   = resourcetype;   // ← now set from subclass
     this.resourceamount = resourceamount;  // ← ditto
     this.owner          = null;
- const spriteInfo = BUILDING_SPRITES[type];
-    if (spriteInfo) {
-      this.spriteKey = spriteInfo.key;
-      this.spriteFrame = spriteInfo.frame;
-    } else {
-      // Fallback for unmapped buildings
-      this.spriteKey = 'monsters_sheet';
-      this.spriteFrame = 87; // Default to rock golem
-      console.warn(`No sprite mapping for building type: ${type}`);
-    }
+ // Set sprite info from mapping
+  const spriteInfo = BUILDING_SPRITES[type];
+  if (spriteInfo) {
+    this.spriteKey = spriteInfo.key;
+    this.spriteFrame = spriteInfo.frame;
+    console.log(`📋 ${type} sprite: ${this.spriteKey} frame ${this.spriteFrame}`);
+  } else {
+    console.warn(`❌ No sprite mapping for building type: ${type}`);
+    this.spriteKey = 'monsters_sheet';
+    this.spriteFrame = 87; // Default to rock golem
+  }
     
   }
 
