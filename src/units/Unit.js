@@ -36,46 +36,86 @@ class Unit {
   }
 
   setSpriteInfo() {
-    // Use rogues sheet for units (7x7 grid, some frames empty)
-    const unitSpriteMap = {
-      'Worker': { key: 'rogues_sheet', frame: 37 },        // 6th row worker
-      'Builder': { key: 'rogues_sheet', frame: 36 },       // 6th row builder
-      'FootSoldier': { key: 'rogues_sheet', frame: 0 },    // Top-left warrior
-      'Shieldbearer': { key: 'rogues_sheet', frame: 8 },   // 2nd row armored
-      'Healer': { key: 'rogues_sheet', frame: 24 },        // 4th row mage/healer
-      'LightRider': { key: 'rogues_sheet', frame: 16 },    // 3rd row rider
-      'HeavyCavalry': { key: 'rogues_sheet', frame: 17 },  // 3rd row heavy rider
-      'Engineer': { key: 'rogues_sheet', frame: 38 }       // 6th row engineer
-    };
+  // Use rogues sheet for units (7x7 grid, some frames empty)
+  const unitSpriteMap = {
+    // Military Units - Infantry
+    'LightInfantry': { key: 'rogues_sheet', frame: 1 },
+    'LightArcher': { key: 'rogues_sheet', frame: 2 },
+    'Assassin': { key: 'rogues_sheet', frame: 3 },
+    'Crossbowman': { key: 'rogues_sheet', frame: 4 },
+    'ArmoredInfantry': { key: 'rogues_sheet', frame: 7 },
+    'HeavyInfantry': { key: 'rogues_sheet', frame: 11 },
+    'Halberd': { key: 'rogues_sheet', frame: 21 },
+    'Mace': { key: 'rogues_sheet', frame: 22 },
+    'Duelist': { key: 'rogues_sheet', frame: 25 },
+    'Berserker': { key: 'rogues_sheet', frame: 26 },
+    'Militia': { key: 'rogues_sheet', frame: 35 },
+    
+    // Military Units - Magic
+    'Cleric': { key: 'rogues_sheet', frame: 15 },
+    'Monk': { key: 'rogues_sheet', frame: 16 },
+    'Sorcerer': { key: 'rogues_sheet', frame: 19 },
+    'Apprentice': { key: 'rogues_sheet', frame: 32 },
+    'Archmage': { key: 'rogues_sheet', frame: 29 },
+    'Spellblade': { key: 'rogues_sheet', frame: 33 },
+    
+    // Military Units - Elite
+    'Maul': { key: 'rogues_sheet', frame: 17 },
+    'Broadsword': { key: 'rogues_sheet', frame: 18 },
+    
+    // Cavalry Units
+    'Cavalry': { key: 'Cavalry', frame: 0 },
+    'MountedArcher': { key: 'Cavalry', frame: 0 },
+    
+    // Civilian Units
+    'Worker': { key: 'rogues_sheet', frame: 36 },
+    'Builder': { key: 'rogues_sheet', frame: 39 },
+    'Farmer': { key: 'rogues_sheet', frame: 37 },
+    'Scholar': { key: 'rogues_sheet', frame: 40 },
+    'Trader': { key: 'rogues_sheet', frame: 42 },
+    'Peasant': { key: 'rogues_sheet', frame: 44 },
+    
+    // Legacy unit names (for compatibility)
+    'FootSoldier': { key: 'rogues_sheet', frame: 1 },    // Light Infantry
+    'Shieldbearer': { key: 'rogues_sheet', frame: 7 },   // Armored Infantry
+    'Healer': { key: 'rogues_sheet', frame: 15 },        // Cleric
+    'LightRider': { key: 'Cavalry', frame: 0 },          // Cavalry
+    'HeavyCavalry': { key: 'Cavalry', frame: 0 },        // Cavalry
+    'Engineer': { key: 'rogues_sheet', frame: 39 }       // Builder
+  };
 
-    const spriteInfo = unitSpriteMap[this.type];
-    if (spriteInfo) {
-      this.spriteKey = spriteInfo.key;
-      this.spriteFrame = spriteInfo.frame;
-    } else {
-      // Fallback to a basic character
-      this.spriteKey = 'rogues_sheet';
-      this.spriteFrame = 0; // Default to top-left
-    }
+  const spriteInfo = unitSpriteMap[this.type];
+  if (spriteInfo) {
+    this.spriteKey = spriteInfo.key;
+    this.spriteFrame = spriteInfo.frame;
+  } else {
+    // Fallback to a basic character
+    console.warn(`No sprite mapping for unit type: ${this.type}`);
+    this.spriteKey = 'rogues_sheet';
+    this.spriteFrame = 36; // Default to Worker
   }
+}
 
   createSprite() {
-    const [x, y] = hexToPixel(this.coords[0], this.coords[1]);
-    
-    try {
-      this.sprite = this.scene.add.sprite(x, y, this.spriteKey, this.spriteFrame)
-        .setOrigin(0.5, 0.5)
-        .setDepth(3)
-        .setTint(this.owner.color);
+  const [x, y] = hexToPixel(this.coords[0], this.coords[1]);
+  
+  try {
+    this.sprite = this.scene.add.sprite(x, y, this.spriteKey, this.spriteFrame)
+      .setOrigin(0.5, 0.5)
+      .setDepth(3);
+
+    // Add team indicator instead (reuse x,y variables)
+    this.teamIndicator = this.scene.add.circle(x + 15, y - 15, 4, this.owner.color)
+      .setDepth(4);
       
-      console.log(`✅ Created ${this.type} sprite at [${this.coords[0]}, ${this.coords[1]}]`);
-    } catch (error) {
-      console.warn(`Failed to create ${this.type} sprite:`, error);
-      // Fallback to colored circle
-      this.sprite = this.scene.add.circle(x, y, 15, this.owner.color)
-        .setDepth(3);
-    }
+    console.log(`✅ Created ${this.type} sprite at [${this.coords[0]}, ${this.coords[1]}]`);
+  } catch (error) {
+    console.warn(`Failed to create ${this.type} sprite:`, error);
+    // Fallback to colored circle
+    this.sprite = this.scene.add.circle(x, y, 15, this.owner.color)
+      .setDepth(3);
   }
+}
 
   /**
    * Move to new hex coordinates (single source of truth)

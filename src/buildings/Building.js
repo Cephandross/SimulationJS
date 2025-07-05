@@ -1,35 +1,35 @@
 // src/buildings/Building.js - Refactored self-contained version
 
 const BUILDING_SPRITES = {
-  // Founding Buildings - use powerful creatures
-  'TownCenter': { key: 'monsters_sheet', frame: 74 },    // Blue elephant-like creature
-  'Village': { key: 'monsters_sheet', frame: 50 },       // Lich/skeleton
-  'City': { key: 'monsters_sheet', frame: 132 },         // Angel (bottom area)
+  // Founding Buildings
+  'TownCenter': { key: 'TownCenter', frame: 0 },
+  'Village': { key: 'Village', frame: 0 },
+  'City': { key: 'Village', frame: 0 }, // Reuse village for now
   
-  // Population Buildings - use smaller/peaceful creatures  
-  'House': { key: 'monsters_sheet', frame: 84 },         // Centaur
-  'LogCabin': { key: 'monsters_sheet', frame: 96 },      // Forest creature
+  // Population Buildings
+  'House': { key: 'House', frame: 0 },
+  'LogCabin': { key: 'LogCabin', frame: 0 },
   
-  // Training Buildings - use military monsters
-  'Barracks': { key: 'monsters_sheet', frame: 3 },       // Orc warrior
-  'Stables': { key: 'monsters_sheet', frame: 84 },       // Centaur (horse-like)
-  'Workshop': { key: 'monsters_sheet', frame: 87 },      // Rock golem
+  // Training Buildings
+  'Barracks': { key: 'Barracks', frame: 0 },
+  'Stables': { key: 'Stables', frame: 0 },
+  'Workshop': { key: 'Workshop', frame: 0 },
   
   // Gathering Buildings
-  'FruitGatherer': { key: 'monsters_sheet', frame: 96 }, // Nature creature
-  'SeedsGatherer': { key: 'monsters_sheet', frame: 97 }, // Plant creature  
-  'Farmland': { key: 'monsters_sheet', frame: 144 },     // Mushroom creature
-  'LumberCamp': { key: 'monsters_sheet', frame: 87 },    // Rock golem
-  'Quarry': { key: 'monsters_sheet', frame: 87 },        // Rock golem
-  'CoalGatherer': { key: 'monsters_sheet', frame: 37 },  // Fire demon
-  'IronGatherer': { key: 'monsters_sheet', frame: 87 },  // Rock golem
-  'CopperGatherer': { key: 'monsters_sheet', frame: 87 }, // Rock golem
-  'GoldGatherer': { key: 'monsters_sheet', frame: 74 },  // Blue creature (valuable)
+  'FruitGatherer': { key: 'FruitGatherer', frame: 0 },
+  'SeedsGatherer': { key: 'SeedsGatherer', frame: 0 },
+  'Farmland': { key: 'FruitGatherer', frame: 0 }, // Reuse FruitGatherer
+  'LumberCamp': { key: 'LumberCamp', frame: 0 },
+  'Quarry': { key: 'Quarry', frame: 0 },
+  'CoalGatherer': { key: 'Quarry', frame: 0 }, // Reuse Quarry for ore
+  'IronGatherer': { key: 'Quarry', frame: 0 },
+  'CopperGatherer': { key: 'Quarry', frame: 0 },
+  'GoldGatherer': { key: 'Quarry', frame: 0 },
   
   // Crafting Buildings
-  'Smelter': { key: 'monsters_sheet', frame: 37 },       // Fire demon
-  'Bakery': { key: 'monsters_sheet', frame: 144 },       // Mushroom
-  'Blacksmith': { key: 'monsters_sheet', frame: 87 }     // Rock golem
+  'Smelter': { key: 'Smelter', frame: 0 },
+  'Bakery': { key: 'Bakery', frame: 0 },
+  'Blacksmith': { key: 'Blacksmith', frame: 0 }
 };
 
 /**
@@ -88,13 +88,14 @@ if (this.scene) {
   const [x, y] = hexToPixel(this.coords[0], this.coords[1]);
   
   try {
-    // Create sprite without heavy tint
+    // Create sprite without heavy tint, scaled down to fit hex
     this.sprite = this.scene.add.sprite(x, y, this.spriteKey, this.spriteFrame)
       .setOrigin(0.5, 0.5)
-      .setDepth(2);
+      .setDepth(2)
+      .setScale(0.8); // Scale down from 64x64 to ~58x58 to fit in 72x72 hex
     
-    // Add colored border/indicator instead
-    this.teamIndicator = this.scene.add.circle(x + 20, y - 20, 6, this.owner.color)
+    // Add colored border/indicator instead of tinting
+    this.teamIndicator = this.scene.add.circle(x + 25, y - 25, 6, this.owner.color)
       .setDepth(3);
     
   } catch (error) {

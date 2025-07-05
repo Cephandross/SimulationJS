@@ -21,6 +21,11 @@ class MainScene extends Phaser.Scene {
     
     this.load.image(img.key, ASSET_PATH + img.file);
   });
+
+  // Load building images
+BUILDING_IMAGES.forEach(img => {
+  this.load.image(img.key, ASSET_PATH + img.file);
+});
   
   // Load sprite sheets
   SPRITE_SHEETS.forEach(sheet => {

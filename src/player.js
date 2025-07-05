@@ -267,10 +267,17 @@ class Player {
     if (nearestForest) {
       console.log(`🔨 ${this.name}: Builder heading to forest at [${nearestForest[0]}, ${nearestForest[1]}]`);
       builder.mission = { type: 'build', target: nearestForest, buildingClass: LumberCamp };
-      builder.moveTo(nearestForest, () => {
-        console.log(`🏗️ ${this.name}: Builder arrived, building LumberCamp`);
-        this.build(LumberCamp, nearestForest);
-      });
+      builder.moveTo(nearestForest);
+builder.onArrive = () => {
+  console.log(`🏗️ ${this.name}: Builder arrived, finding adjacent build site`);
+  const buildSite = this.findAdjacentBuildSite(nearestForest, 'LumberCamp');
+  if (buildSite) {
+    console.log(`🏗️ ${this.name}: Building LumberCamp at [${buildSite[0]}, ${buildSite[1]}]`);
+    this.build(LumberCamp, buildSite);
+  } else {
+    console.warn(`❌ ${this.name}: Builder couldn't find valid build site near forest`);
+  }
+};
     }
   }
 
@@ -293,6 +300,40 @@ class Player {
     }
 
     console.warn(`❌ ${this.name}: No forest found within ${maxRange} tiles`);
+    return null;
+  }
+
+  /**
+   * Find a valid adjacent tile to build on near a resource
+   */
+  findAdjacentBuildSite(resourceCoords, buildingType) {
+    const [resourceQ, resourceR] = resourceCoords;
+    
+    // Get all adjacent tiles to the resource
+    const neighbors = this.scene.map.getNeighbors(resourceQ, resourceR);
+    
+    // Find the first valid build site
+    for (const neighbor of neighbors) {
+      if (!neighbor) continue;
+      
+      const [q, r] = [neighbor.q, neighbor.r];
+      
+      // Check if this tile is buildable and empty
+      if (neighbor.isBuildable() && !this.gameWorld.getBuildingAt(q, r) && !this.gameWorld.getUnitAt(q, r)) {
+        // For gathering buildings, make sure we can actually build this type here
+        if (buildingType === 'LumberCamp') {
+          // LumberCamp should be adjacent to forest, not necessarily ON forest
+          console.log(`✅ Found build site for ${buildingType} at [${q}, ${r}] adjacent to forest`);
+          return [q, r];
+        }
+        
+        // For other building types, add validation as needed
+        console.log(`✅ Found build site for ${buildingType} at [${q}, ${r}]`);
+        return [q, r];
+      }
+    }
+    
+    console.warn(`❌ No valid build site found adjacent to [${resourceQ}, ${resourceR}] for ${buildingType}`);
     return null;
   }
 

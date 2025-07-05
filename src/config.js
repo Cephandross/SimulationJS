@@ -290,6 +290,25 @@ const INDIVIDUAL_IMAGES = [
   { key: 'WoodsIsland5', file: 'WoodsIsland5.png' }
 ];
 
+const BUILDING_IMAGES = [
+  { key: 'Bakery', file: 'Bakery.png' },
+  { key: 'Barracks', file: 'Barracks.png' },
+  { key: 'Blacksmith', file: 'Blacksmith.png' },
+  { key: 'FruitGatherer', file: 'FruitGatherer.png' },
+  { key: 'House', file: 'House.png' },
+  { key: 'LogCabin', file: 'LogCabin.png' },
+  { key: 'LumberCamp', file: 'LumberCamp.png' },
+  { key: 'Quarry', file: 'Quarry.png' },
+  { key: 'SeedsGatherer', file: 'SeedsGatherer.png' },
+  { key: 'Smelter', file: 'Smelter.png' },
+  { key: 'Stables', file: 'Stables.png' },
+  { key: 'Storehouse', file: 'Storehouse.png' },
+  { key: 'TownCenter', file: 'TownCenter.png' },
+  { key: 'Village', file: 'Village.png' },
+  { key: 'Wall', file: 'Wall.png' },
+  { key: 'Workshop', file: 'Workshop.png' }
+];
+
 // Updated BIOME_ASSETS to match your actual files
 const BIOME_ASSETS = {
   // Water features
