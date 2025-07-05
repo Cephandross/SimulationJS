@@ -1,46 +1,49 @@
 // src/buildings/Training.js
 
 class Barracks extends Building {
-  constructor(coords) {
+  constructor(coords, owner = null, scene = null) {
     super({
       type: 'Barracks',
       category: 'Training',
-      coords,
-      costs:    { wood:100, stone:50 },
+      owner: owner,
+      coords: coords,
+      scene: scene,
+      costs: { wood:100, stone:50 },
       hitpoints: 200,
-      buildTime:  4
+      buildTime: 4
     });
-    
   }
 }
 window.Barracks = Barracks;
 
 class Stables extends Building {
-  constructor(coords) {
+  constructor(coords, owner = null, scene = null) {
     super({
       type: 'Stables',
       category: 'Training',
-      coords,
-      costs:    { wood:150, stone:75 },
+      owner: owner,
+      coords: coords,
+      scene: scene,
+      costs: { wood:150, stone:75 },
       hitpoints: 200,
-      buildTime:  5
+      buildTime: 5
     });
-   
   }
 }
 window.Stables = Stables;
 
 class Workshop extends Building {
-  constructor(coords) {
+  constructor(coords, owner = null, scene = null) {
     super({
       type: 'Workshop',
       category: 'Training',
-      coords,
-      costs:    { wood: 80, stone: 80 },
+      owner: owner,
+      coords: coords,
+      scene: scene,
+      costs: { wood: 80, stone: 80 },
       hitpoints: 150,
-      buildTime:  4
+      buildTime: 4
     });
-   
   }
 }
 window.Workshop = Workshop;

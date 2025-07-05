@@ -32,56 +32,54 @@ class MainScene extends Phaser.Scene {
   });
 }
 
-  create() {    
-    // Reset state
-    this.tickCount = 0;
-    this.lastTick = 0;
-    this.isDragging = false;
-     // DEBUG: Test monster spritesheet loading
+ create() {    
+  // Reset state
+  this.tickCount = 0;
+  this.lastTick = 0;
+  this.isDragging = false;
   
+  // Create hex map
+  this.map = new HexTileMap(this);
+  map = this.map;
 
+  // Create game world coordinator
+  this.gameWorld = new GameWorld(this);
+
+  // Set camera bounds
+  const worldSize = 200 * HEX_SIZE * 2;
+  this.cameras.main.setBounds(-worldSize/2, -worldSize/2, worldSize, worldSize);
+  this.cameras.main.centerOn(0, 0);
+
+  // Bootstrap CPU players with new architecture
+  // Bootstrap CPU players with new architecture
+if (this.gameWorld.players.length === 0) {
+  const cpu1 = new Player('CPU1', 0xff0000, this.gameWorld);
+  const cpu2 = new Player('CPU2', 0x0000ff, this.gameWorld);
   
-
+  // Make sure they have scene references
+  cpu1.scene = this;
+  cpu2.scene = this;
   
-    // Create hex map
-    this.map = new HexTileMap(this);
-    map = this.map;
+  this.gameWorld.addPlayer(cpu1);
+  this.gameWorld.addPlayer(cpu2);
+  
+  // Give them resources
+  [cpu1, cpu2].forEach(p =>
+    p.addResources({
+      food: 1000, wood: 1000, stone: 1000
+    })
+  );
 
-    // Set camera bounds (larger for hex world)
-    const worldSize = 200 * HEX_SIZE * 2; // Rough estimate
-    this.cameras.main.setBounds(-worldSize/2, -worldSize/2, worldSize, worldSize);
-    this.cameras.main.centerOn(0, 0);
+  this.registry.set('players', this.gameWorld.players);
+  this.scene.launch('UIScene');
+  
+  // Initialize their bases
+  cpu1.initializeBase();
+  cpu2.initializeBase();
+}
 
-    // Bootstrap CPU players (simplified for now)
-    if (players.length === 0) {
-      players.push(
-        new Player('CPU1', 0xff0000),
-        new Player('CPU2', 0x0000ff)
-      );
-      
-      // Give them basic resources
-      players.forEach(p =>
-        p.addResources({
-          food: 1000, wood: 1000, stone: 1000
-        })
-      );
-
-      this.registry.set('players', players);
-      this.scene.launch('UIScene');
-      
-      players.forEach(p => p.initializeBase(this));
-      
-    }
-
-    // Input handlers
-    this.setupInputHandlers();
-    
-    
-    
-
-
-
-};
+  this.setupInputHandlers();
+}
    
 
 
@@ -221,17 +219,21 @@ this.input.keyboard.on('keydown-I', () => {
     }
 
     // Game tick logic (simplified for now)
-    if (time - this.lastTick > TICK_INTERVAL) {
-      this.lastTick = time;
-      this.tickCount++;
+    // Game tick logic using GameWorld
+if (time - this.lastTick > TICK_INTERVAL) {
+  this.lastTick = time;
+  this.tickCount++;
 
-      // Update UI
-      const ui = this.scene.get('UIScene');
-      if (ui) {
-        ui.updateTick(this.tickCount);
-        ui.updateResources();
-      }
-    }
+  // Use GameWorld for centralized tick
+  this.gameWorld.tick();
+
+  // Update UI
+  const ui = this.scene.get('UIScene');
+  if (ui) {
+    ui.updateTick(this.tickCount);
+    ui.updateResources();
+  }
+}
   }
 }
 

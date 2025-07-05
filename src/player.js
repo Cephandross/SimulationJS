@@ -57,47 +57,35 @@ class Player {
    * @returns {boolean} success
    */
     // src/player.js
-build(BuildingClass, [tx, ty], scene) {
-  const map  = scene.map;
-  const tile = map.getTile(tx, ty);
-  if (!tile || !tile.isEmpty()) return false;
+/**
+ * Try to place a building - now much simpler!
+ */
+build(BuildingClass, [q, r]) {
+  // Create temporary instance to check costs (no owner/scene to avoid sprite creation)
+  const tempBuilding = new BuildingClass([q, r]);
+  const costs = tempBuilding.costs;
 
-  // 1) instantiate so we can inspect category & resourcetype
-  const building = new BuildingClass([tx, ty]);
-  const costs    = building.costs;
-
-  // 2) tile‐type gating
-  // 2) tile‐type gating
-  if (building.category !== 'Gathering') {
-    // Non-gathering buildings need flat buildable terrain
-    const buildableTerrains = ['grass', 'light_grass', 'rough'];
-    if (!buildableTerrains.includes(tile.biome) || 
-        ['forest', 'mountain'].includes(tile.biome) ||
-        tile.biome.endsWith('_deposit')) {
-      console.warn(`❌ Cannot build ${building.type} on ${tile.biome}`);
-      return false;
-    }
-  } else {
-    // Gathering buildings must match their resource requirements
-    if (!scene.map.validateResourcePlacement(building, tx, ty)) {
-      return false;
-    }
-  }
-  // 3) cost check & deduct
-  for (let [res, amt] of Object.entries(costs)) {
-    if ((this.resources[res] || 0) < amt) return false;
-    this.resources[res] -= amt;
+  // Check affordability and placement
+  if (!this.canAfford(costs)) {
+    console.warn(`❌ Cannot afford ${BuildingClass.name}: need`, costs);
+    return false;
   }
 
-  // 4) register & place
-  building.owner = this;
+  if (!Building.canPlaceAt(BuildingClass, q, r, this.scene, this)) {
+    console.warn(`❌ Cannot place ${BuildingClass.name} at [${q}, ${r}]`);
+    return false;
+  }
+
+  // Deduct costs
+  this.spendResources(costs);
+
+  // Create the actual building with proper owner and scene
+  const building = new BuildingClass([q, r], this, this.scene);
   this.buildings.push(building);
-  map.placeBuildingState(building, tx, ty);
-  building.sprite = map.placeBuildingSprite(building, tx, ty, this.color);
-
+  
+  console.log(`🏗️ ${this.name} started building ${building.type} at [${q}, ${r}]`);
   return true;
 }
-
 
   
   
