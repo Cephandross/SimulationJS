@@ -1,24 +1,22 @@
-// src/player.js
+// src/player.js - Refactored version
 
 class Player {
-  constructor(name, color) {
-    this.name       = name;
-    this.color      = color;      // tint color, e.g. 0xff0000
-    this.resources  = {
-      food:   0,
-      wood:   0,
-      stone:  0,
-      iron:   0,
-      copper: 0,
-      coal: 0,
-      gold:   0,
-      coins:  0
+  constructor(name, color, gameWorld) {
+    this.name = name;
+    this.color = color;
+    this.gameWorld = gameWorld; // Reference to central coordinator
+    this.scene = gameWorld.scene;
+    
+    this.resources = {
+      food: 0, wood: 0, stone: 0, iron: 0,
+      copper: 0, coal: 0, gold: 0, coins: 0
     };
-    this.buildings  = [];         // Building instances (in‐progress or complete)
-    this.units      = [];         // Unit instances
-    this.population = 0;          // cap minus used (managed elsewhere)
+    
+    this.buildings = [];  // Array of Building instances
+    this.units = [];      // Array of Unit instances
+    this.population = 0;
+    this.startCoords = null;
   }
-
 
   addResources(typeOrMap, amount) {
     if (typeof typeOrMap === 'object') {
@@ -32,14 +30,12 @@ class Player {
     }
   }
 
-  /** True if player has ≥ each cost[k]. */
   canAfford(costs) {
     return Object.entries(costs).every(
       ([k, v]) => (this.resources[k] || 0) >= v
     );
   }
 
-  /** Deduct costs if affordable; return true on success. */
   spendResources(costs) {
     if (!this.canAfford(costs)) return false;
     for (let k in costs) {
@@ -48,406 +44,268 @@ class Player {
     return true;
   }
 
-    /**
-   * Try to place a building of class BuildingClass at [tx,ty].
-   * Deducts resources, registers ownership, updates map & sprite.
-   * @param {class} BuildingClass
-   * @param {[number,number]} coords  [tx, ty]
-   * @param {Phaser.Scene} scene
-   * @returns {boolean} success
+  /**
+   * Try to place a building - now much simpler!
    */
-    // src/player.js
-/**
- * Try to place a building - now much simpler!
- */
-build(BuildingClass, [q, r]) {
-  // Create temporary instance to check costs (no owner/scene to avoid sprite creation)
-  const tempBuilding = new BuildingClass([q, r]);
-  const costs = tempBuilding.costs;
+  build(BuildingClass, [q, r]) {
+    // Check if placement is valid
+    if (!Building.canPlaceAt(BuildingClass, q, r, this.scene, this)) {
+      console.warn(`❌ Cannot place ${BuildingClass.name} at [${q}, ${r}]`);
+      return false;
+    }
 
-  // Check affordability and placement
-  if (!this.canAfford(costs)) {
-    console.warn(`❌ Cannot afford ${BuildingClass.name}: need`, costs);
-    return false;
+    // Create temporary instance to check costs (no owner/scene to avoid sprite creation)
+    const tempBuilding = new BuildingClass([q, r]);
+    const costs = tempBuilding.costs;
+
+    // Check affordability
+    if (!this.spendResources(costs)) {
+      console.warn(`❌ Cannot afford ${BuildingClass.name}: need`, costs);
+      return false;
+    }
+
+    // Create the actual building
+    const building = new BuildingClass([q, r], this, this.scene);
+    this.buildings.push(building);
+    console.log(`🏗️ ${this.name} started building ${building.type} at [${q}, ${r}]`);
+    return true;
   }
-
-  if (!Building.canPlaceAt(BuildingClass, q, r, this.scene, this)) {
-    console.warn(`❌ Cannot place ${BuildingClass.name} at [${q}, ${r}]`);
-    return false;
-  }
-
-  // Deduct costs
-  this.spendResources(costs);
-
-  // Create the actual building with proper owner and scene
-  const building = new BuildingClass([q, r], this, this.scene);
-  this.buildings.push(building);
-  
-  console.log(`🏗️ ${this.name} started building ${building.type} at [${q}, ${r}]`);
-  return true;
-}
-
-  
-  
 
   /**
-   * Called each tick to:
-   * 1) Gather resources
-   * 2) Train units
-   * 3) Consume upkeep
+   * Spawn a unit - much simpler now!
+   */
+  spawnUnit(UnitClass, [q, r]) {
+    // Check if position is valid
+    const tile = this.scene.map.getTile(q, r);
+    if (!tile || !tile.isPassable()) {
+      console.warn(`❌ Cannot spawn ${UnitClass.name} at [${q}, ${r}] - impassable`);
+      return false;
+    }
+
+    // Check for existing unit at position
+    if (this.gameWorld.getUnitAt(q, r)) {
+      console.warn(`❌ Cannot spawn ${UnitClass.name} at [${q}, ${r}] - occupied`);
+      return false;
+    }
+
+    // Create the unit
+    const unit = new UnitClass([q, r], this, this.scene);
+    this.units.push(unit);
+    console.log(`👤 ${this.name} spawned ${unit.type} at [${q}, ${r}]`);
+    return unit;
+  }
+
+  /**
+   * Game tick - much cleaner now!
    */
   tick() {
-    // 1) Produce from Gathering buildings
-    this.buildings.forEach(b => {
-      if (b.category === 'Gathering' && b.completed) {
-        // Validate building is on correct terrain
-        const [bx, by] = b.coords;
-        const tile = this.scene?.map?.getTile(bx, by);
-        
-        if (tile && this.validateGatheringTerrain(b, tile)) {
-          b.gatherUpdate();
-          console.log(`🌾 ${b.type} gathered ${b.resourceamount} ${b.resourcetype} for ${this.name}`);
-        } else {
-          console.warn(`⚠️ ${b.type} at [${bx},${by}] on wrong terrain: ${tile?.biome}`);
-        }
+    // 1) Advance building construction
+    this.buildings.forEach(building => {
+      building.tickBuild();
+      if (building.completed && building.category === 'Gathering') {
+        building.gatherUpdate();
       }
     });
 
-    /* // 2) Train units in Training buildings
-    this.buildings.forEach(b => {
-      if (b.category === 'Training' && b.completed) {
-        const unit = b.tryTrain();
-        if (unit) this.addUnit(unit);
-      }
-    }); */
+    // 2) Update unit movement/AI
+    this.units.forEach(unit => {
+      unit.update();
+    });
 
-    // 3) Food upkeep: 1 per pop-used
+    // 3) Food upkeep
     const upkeep = Math.max(0, this.population - this.units.length);
     if (upkeep > 0) {
       this.resources.food = Math.max(0, this.resources.food - upkeep);
     }
+  }
 
-     // advance all building constructions
-     for (let b of this.buildings) {
-      b.tickBuild();
+  /**
+   * Initialize CPU player base
+   */
+  initializeBase() {
+    // Find valid start location
+    const startInfo = this.findValidStartLocation();
+    if (!startInfo) {
+      console.error(`❌ ${this.name}: No valid start location found`);
+      return;
     }
-    // advance all unit movements
-    for (let u of this.units) {
-      if (typeof u.update === 'function') {
-        u.update();
+
+    const [startQ, startR] = startInfo.coords;
+    this.startCoords = [startQ, startR];
+    this.scene.registry.set(`${this.name}Start`, [startQ, startR]);
+
+    console.log(`🏛️ ${this.name} starting at [${startQ}, ${startR}]`);
+
+    // Build initial structures
+    this.build(TownCenter, [startQ, startR]);
+    this.placeStartingGatherers(startInfo.resources);
+
+    // Spawn initial builder
+    this.spawnBootstrapBuilder([startQ, startR]);
+  }
+
+  findValidStartLocation() {
+    const maxDistanceFromCenter = 100;
+    const attempts = 200;
+
+    console.log(`🔍 ${this.name}: Searching for start location...`);
+
+    for (let i = 0; i < attempts; i++) {
+      const q = Phaser.Math.Between(-maxDistanceFromCenter, maxDistanceFromCenter);
+      const r = Phaser.Math.Between(-maxDistanceFromCenter, maxDistanceFromCenter);
+
+      const distanceFromCenter = (Math.abs(q) + Math.abs(r) + Math.abs(-q - r)) / 2;
+      if (distanceFromCenter > maxDistanceFromCenter) continue;
+
+      const startTile = this.scene.map.getTile(q, r);
+      if (!startTile) continue;
+
+      if (!['grass', 'light_grass'].includes(startTile.biome)) continue;
+
+      // Check if position is free
+      if (this.gameWorld.getBuildingAt(q, r)) continue;
+
+      // Check for resources within 20 tiles
+      const nearbyResources = this.findNearbyResources(q, r, 20);
+
+      if (nearbyResources.wood.length > 0 && nearbyResources.stone.length > 0 && nearbyResources.food.length > 0) {
+        console.log(`✅ ${this.name}: Found valid start at [${q}, ${r}]`);
+        return { coords: [q, r], resources: nearbyResources };
       }
     }
-    
+
+    console.error(`❌ ${this.name}: Failed to find valid start after ${attempts} attempts`);
+    return null;
   }
 
-  /** Register a finished unit. */
-  addUnit(unit) {
-    this.units.push(unit);
-    unit.owner = this;
-  }
+  findNearbyResources(startQ, startR, range) {
+    const resources = { wood: [], stone: [], food: [], ore: [] };
 
-  /**
-   * Move a unit; simple range check omitted.
-   * @param {Unit} unit
-   * @param {[x,y]} target
-   */
-  moveUnit(unit, target) {
-    if (unit.movementPoints <= 0) return false;
-    unit.coords = target;
-    unit.movementPoints--;
-    return true;
-  }
+    for (let radius = 1; radius <= range; radius++) {
+      for (let q = startQ - radius; q <= startQ + radius; q++) {
+        for (let r = startR - radius; r <= startR + radius; r++) {
+          const distance = Math.abs(q - startQ) + Math.abs(r - startR) + Math.abs(-q - r + startQ + startR);
+          if (distance / 2 !== radius) continue;
 
-  /**
-   * Simple probabilistic attack.
-   * @param {Unit} attacker
-   * @param {Unit} defender
-   */
-  attack(attacker, defender) {
-    const atk  = attacker.attackPower;
-    const def  = defender.defensePower;
-    const roll = Math.random();
-    if (roll < atk / (atk + def)) {
-      defender.takeDamage(atk);
-      if (defender.isDestroyed()) {
-        // remove from its owner
-        const idx = defender.owner.units.indexOf(defender);
-        if (idx >= 0) defender.owner.units.splice(idx, 1);
-      }
-      return true;
-    }
-    return false;
-  }
+          const tile = this.scene.map.getTile(q, r);
+          if (!tile) continue;
 
-
-  /**
-   * Validate gathering building is on correct terrain
-   */
-  validateGatheringTerrain(building, tile) {
-    const resourceType = building.resourcetype;
-    const biome = tile.biome;
-    
-    const resourceBiomes = {
-      'wood': ['forest', 'pine_forest', 'dark_forest'],
-      'stone': ['mountain', 'snow_mountain', 'hills'],
-      'food': ['grass', 'light_grass'],
-      'seeds': ['grass', 'light_grass'],
-      'coal': ['mountain', 'snow_mountain'],
-      'iron': ['mountain', 'snow_mountain'],
-      'copper': ['mountain', 'snow_mountain'], 
-      'gold': ['mountain', 'snow_mountain']
-    };
-    
-    const requiredBiomes = resourceBiomes[resourceType];
-    if (!requiredBiomes) return true; // Unknown resource type passes
-    
-    // Check basic biome requirement
-    if (!requiredBiomes.includes(biome)) return false;
-    
-    // For ore, also check for specific deposit
-    if (['coal', 'iron', 'copper', 'gold'].includes(resourceType)) {
-      return tile.oreType === resourceType;
-    }
-    
-    return true;
-  }
-
-    /**
-/**
- * Pick a random 2×2 pure-grass patch (no overlays)
- * with ≥4 surrounding grass tiles.
- * @param {TileMap} map
- * @returns {[number,number]|null}
- */
-// Add this method to Player class
-findValidStartLocation(map) {
-  const maxDistanceFromCenter = 100;
-  const attempts = 200;
-  
-  console.log(`🔍 ${this.name}: Searching for start location...`);
-  
-  for (let i = 0; i < attempts; i++) {
-    const q = Phaser.Math.Between(-maxDistanceFromCenter, maxDistanceFromCenter);
-    const r = Phaser.Math.Between(-maxDistanceFromCenter, maxDistanceFromCenter);
-    
-    const distanceFromCenter = (Math.abs(q) + Math.abs(r) + Math.abs(-q-r)) / 2;
-    if (distanceFromCenter > maxDistanceFromCenter) continue;
-    
-    const startTile = map.getTile(q, r);
-    if (!startTile) continue;
-    
-    if (!['grass', 'light_grass'].includes(startTile.biome)) continue;
-    
-    // Check for 1x1 clear area
-    const tile = map.getTile(q, r);
-    let validArea = tile && tile.isEmpty() && ['grass', 'light_grass'].includes(tile.biome);
-    
-    if (!validArea) continue;
-    
-    // Check for resources within 20 tiles
-    const nearbyResources = this.findNearbyResources(map, q, r, 20);
-    
-    console.log(`  Attempt ${i}: [${q}, ${r}] - Wood: ${nearbyResources.wood.length}, Stone: ${nearbyResources.stone.length}, Food: ${nearbyResources.food.length}`);
-    
-    // Need at least wood, stone, and food potential  
-    if (nearbyResources.wood.length > 0 && nearbyResources.stone.length > 0 && nearbyResources.food.length > 0) {
-      console.log(`✅ ${this.name}: Found valid start at [${q}, ${r}]`);
-      return { coords: [q, r], resources: nearbyResources };
-    }
-  }
-  
-  console.error(`❌ ${this.name}: Failed to find valid start after ${attempts} attempts`);
-  return null;
-}
-
-findNearbyResources(map, startQ, startR, range) {
-  const resources = { wood: [], stone: [], food: [], ore: [] };
-  
-  // Search in expanding rings
-  for (let radius = 1; radius <= range; radius++) {
-    for (let q = startQ - radius; q <= startQ + radius; q++) {
-      for (let r = startR - radius; r <= startR + radius; r++) {
-        // Skip if not on ring edge
-        const distance = Math.abs(q - startQ) + Math.abs(r - startR) + Math.abs(-q - r + startQ + startR);
-        if (distance / 2 !== radius) continue;
-        
-        const tile = map.getTile(q, r);
-        if (!tile) continue;
-        
-        // Check for resource potential
-        if (['forest', 'pine_forest', 'dark_forest'].includes(tile.biome)) {
-          resources.wood.push([q, r]);
-        }
-        if (['mountain', 'snow_mountain', 'hills'].includes(tile.biome)) {
-          resources.stone.push([q, r]);
-          if (tile.oreType) {
-            resources.ore.push({coords: [q, r], type: tile.oreType});
+          // Check for resource potential
+          if (['forest', 'pine_forest', 'dark_forest'].includes(tile.biome)) {
+            resources.wood.push([q, r]);
+          }
+          if (['mountain', 'snow_mountain', 'hills'].includes(tile.biome)) {
+            resources.stone.push([q, r]);
+            if (tile.oreType) {
+              resources.ore.push({ coords: [q, r], type: tile.oreType });
+            }
+          }
+          if (['grass', 'light_grass'].includes(tile.biome)) {
+            resources.food.push([q, r]);
           }
         }
-        if (['grass', 'light_grass'].includes(tile.biome)) {
-          resources.food.push([q, r]);
+      }
+    }
+
+    return resources;
+  }
+
+  placeStartingGatherers(nearbyResources) {
+    // Place initial gathering buildings
+    if (nearbyResources.wood.length > 0) {
+      const [q, r] = nearbyResources.wood[0];
+      this.build(LumberCamp, [q, r]);
+    }
+
+    if (nearbyResources.stone.length > 0) {
+      const [q, r] = nearbyResources.stone[0];
+      this.build(Quarry, [q, r]);
+    }
+
+    if (nearbyResources.food.length > 0) {
+      const [q, r] = nearbyResources.food[0];
+      this.build(FruitGatherer, [q, r]);
+    }
+
+    // Place ore gatherer if available
+    if (nearbyResources.ore.length > 0) {
+      const ore = nearbyResources.ore[0];
+      const [q, r] = ore.coords;
+
+      let GathererClass;
+      switch (ore.type) {
+        case 'coal': GathererClass = CoalGatherer; break;
+        case 'iron': GathererClass = IronGatherer; break;
+        case 'copper': GathererClass = CopperGatherer; break;
+        case 'gold': GathererClass = GoldGatherer; break;
+      }
+
+      if (GathererClass) {
+        this.build(GathererClass, [q, r]);
+      }
+    }
+  }
+
+  spawnBootstrapBuilder([townQ, townR]) {
+    // Find empty adjacent tile
+    const neighbors = this.scene.map.getNeighbors(townQ, townR);
+    const validTile = neighbors.find(tile => {
+      return tile && tile.isPassable() && !this.gameWorld.getUnitAt(tile.q, tile.r);
+    });
+
+    if (!validTile) {
+      console.warn(`❌ ${this.name}: No space to spawn builder`);
+      return;
+    }
+
+    // Spawn builder
+    const builder = this.spawnUnit(Builder, [validTile.q, validTile.r]);
+    if (!builder) return;
+
+    // Find nearest forest
+    const nearestForest = this.findNearestForest(validTile.q, validTile.r);
+    if (nearestForest) {
+      console.log(`🔨 ${this.name}: Builder heading to forest at [${nearestForest[0]}, ${nearestForest[1]}]`);
+      builder.mission = { type: 'build', target: nearestForest, buildingClass: LumberCamp };
+      builder.moveTo(nearestForest, () => {
+        console.log(`🏗️ ${this.name}: Builder arrived, building LumberCamp`);
+        this.build(LumberCamp, nearestForest);
+      });
+    }
+  }
+
+  findNearestForest(startQ, startR) {
+    const maxRange = 30;
+    const forestBiomes = ['forest', 'pine_forest', 'dark_forest'];
+
+    for (let range = 1; range <= maxRange; range++) {
+      for (let q = startQ - range; q <= startQ + range; q++) {
+        for (let r = startR - range; r <= startR + range; r++) {
+          const distance = Math.abs(q - startQ) + Math.abs(r - startR) + Math.abs(-q - r + startQ + startR);
+          if (distance / 2 !== range) continue;
+
+          const tile = this.scene.map.getTile(q, r);
+          if (tile && forestBiomes.includes(tile.biome) && !this.gameWorld.getBuildingAt(q, r)) {
+            return [q, r];
+          }
         }
       }
     }
-  }
-  
-  return resources;
-}
-  
-    /**
-     * Full CPU bootstrap:
-     * – pick start, save to registry
-     * – build TownCenter + Workshop
-     * – spawn a builder, send it to a resource, build gatherer
-     */
-    // src/player.js
-    initializeBase(scene) {
-  // Find valid start location
-  const startInfo = this.findValidStartLocation(scene.map);
-  if (!startInfo) {
-    console.error(`❌ ${this.name}: No valid start location found`);
-    return;
-  }
-  
-  const [startQ, startR] = startInfo.coords;
-  this.startCoords = [startQ, startR];
-  scene.registry.set(`${this.name}Start`, [startQ, startR]);
-  
-  console.log(`🏛️ ${this.name} TOWN CENTER at [${startQ}, ${startR}]`);
-  
-  // Build TownCenter
-  this.build(TownCenter, [startQ, startR], scene);
-  
-  // Place guaranteed gathering buildings
-  this.placeStartingGatherers(scene, startInfo.resources);
 
-  // Spawn a bootstrap builder next to town center
-  this.spawnBootstrapBuilder(scene, [startQ, startR]);
-}
+    console.warn(`❌ ${this.name}: No forest found within ${maxRange} tiles`);
+    return null;
+  }
 
-/**
- * Spawn a builder next to town center and send it to build lumber camp
- */
-spawnBootstrapBuilder(scene, [townQ, townR]) {
-  // Find empty tile adjacent to town center
-  const neighbors = scene.map.getNeighbors(townQ, townR);
-  const spawnTile = neighbors.find(tile => tile && tile.isEmpty() && tile.isPassable());
-  
-  if (!spawnTile) {
-    console.warn(`❌ ${this.name}: No space to spawn builder near town center`);
-    return;
-  }
-  
-  // Create builder
-  const builder = new Builder([spawnTile.q, spawnTile.r]);
-  builder.owner = this;
-  this.addUnit(builder);
-  
-  // Place on map
-  spawnTile.placeUnit(builder);
-  builder.sprite = scene.map.placeUnitSprite(builder, spawnTile.q, spawnTile.r, this.color);
-  
-  // Find nearest forest for lumber camp
-  const nearestForest = this.findNearestForest(scene.map, spawnTile.q, spawnTile.r);
-  if (nearestForest) {
-    console.log(`🔨 ${this.name}: Builder heading to forest at [${nearestForest[0]}, ${nearestForest[1]}]`);
-    builder.mission = { type: 'build', target: nearestForest, buildingClass: LumberCamp };
-    builder.moveTo(nearestForest, scene);
-    builder.onArrive = () => {
-      console.log(`🏗️ ${this.name}: Builder arrived, attempting to build LumberCamp`);
-      if (this.build(LumberCamp, nearestForest, scene)) {
-        console.log(`✅ ${this.name}: LumberCamp built successfully!`);
-      } else {
-        console.log(`❌ ${this.name}: Failed to build LumberCamp`);
-      }
-    };
-  }
-}
-
-/**
- * Find nearest forest tile within reasonable range
- */
-findNearestForest(map, startQ, startR) {
-  const maxRange = 30;
-  const forestBiomes = ['forest', 'pine_forest', 'dark_forest'];
-  
-  for (let range = 1; range <= maxRange; range++) {
-    // Search in expanding rings
-    for (let q = startQ - range; q <= startQ + range; q++) {
-      for (let r = startR - range; r <= startR + range; r++) {
-        // Only check ring edge
-        const distance = Math.abs(q - startQ) + Math.abs(r - startR) + Math.abs(-q - r + startQ + startR);
-        if (distance / 2 !== range) continue;
-        
-        const tile = map.getTile(q, r);
-        if (tile && forestBiomes.includes(tile.biome) && tile.isEmpty()) {
-          return [q, r];
-        }
-      }
-    }
-  }
-  
-  console.warn(`❌ ${this.name}: No forest found within ${maxRange} tiles`);
-  return null;
-}
-
-placeStartingGatherers(scene, nearbyResources) {
-  // Place one of each gathering building type within 20 tiles
-  if (nearbyResources.wood.length > 0) {
-    const [q, r] = nearbyResources.wood[0];
-    this.build(LumberCamp, [q, r], scene);
-  }
-  
-  if (nearbyResources.stone.length > 0) {
-    const [q, r] = nearbyResources.stone[0];
-    this.build(Quarry, [q, r], scene);
-  }
-  
-  // Place a farm on nearby grass
-  if (nearbyResources.food.length > 0) {
-    const [q, r] = nearbyResources.food[0];
-    this.build(FruitGatherer, [q, r], scene); // or whatever your food building is
-  }
-  
-  // Place ore gatherer if available
-  if (nearbyResources.ore.length > 0) {
-    const ore = nearbyResources.ore[0];
-    const [q, r] = ore.coords;
-    
-    // Choose appropriate gatherer for ore type
-    let GathererClass;
-    switch (ore.type) {
-      case 'coal': GathererClass = CoalGatherer; break;
-      case 'iron': GathererClass = IronGatherer; break;
-      case 'copper': GathererClass = CopperGatherer; break;
-      case 'gold': GathererClass = GoldGatherer; break;
-    }
-    
-    if (GathererClass) {
-      this.build(GathererClass, [q, r], scene);
-    }
-  }
-}
-    
-
-    
-
-  /** Get a compact status for UI. */
   getStatus() {
     return {
-      name:       this.name,
-      color:      this.color,
-      resources:  { ...this.resources },
+      name: this.name,
+      color: this.color,
+      resources: { ...this.resources },
       population: this.population,
-      buildings:  this.buildings.length,
-      units:      this.units.length
+      buildings: this.buildings.length,
+      units: this.units.length
     };
   }
-
-  /** Accessors if needed elsewhere */
-  getBuildings() { return this.buildings.slice(); }
-  getUnits()     { return this.units.slice(); }
 }
 
-// expose globally
 window.Player = Player;

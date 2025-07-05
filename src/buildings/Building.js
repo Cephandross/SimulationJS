@@ -82,26 +82,23 @@ if (this.scene) {
     }
   }
 
-  createSprite() {
-  if (!this.scene) {
-    console.warn(`No scene provided for ${this.type}, skipping sprite creation`);
-    return;
-  }
+ createSprite() {
+  if (!this.scene) return;
 
   const [x, y] = hexToPixel(this.coords[0], this.coords[1]);
   
   try {
+    // Create sprite without heavy tint
     this.sprite = this.scene.add.sprite(x, y, this.spriteKey, this.spriteFrame)
       .setOrigin(0.5, 0.5)
-      .setDepth(2)
-      .setTint(this.owner ? this.owner.color : 0xffffff);
-    
-    console.log(`✅ Created ${this.type} sprite at [${this.coords[0]}, ${this.coords[1]}]`);
-  } catch (error) {
-    console.error(`Failed to create ${this.type} sprite:`, error);
-    // Fallback to colored rectangle
-    this.sprite = this.scene.add.rectangle(x, y, 32, 32, this.owner ? this.owner.color : 0xffffff)
       .setDepth(2);
+    
+    // Add colored border/indicator instead
+    this.teamIndicator = this.scene.add.circle(x + 20, y - 20, 6, this.owner.color)
+      .setDepth(3);
+    
+  } catch (error) {
+    // fallback...
   }
 }
 
@@ -164,7 +161,7 @@ if (this.scene) {
       }
     }
     
-    console.log(`✅ ${building.type} placement valid on ${biome}${tile.oreType ? ` (${tile.oreType})` : ''}`);
+    //console.log(`✅ ${building.type} placement valid on ${biome}${tile.oreType ? ` (${tile.oreType})` : ''}`);
     return true;
   }
 
@@ -202,7 +199,7 @@ if (this.scene) {
     const tile = this.scene.map.getTile(this.coords[0], this.coords[1]);
     if (tile && Building.validateResourcePlacement(this, tile)) {
       this.owner.addResources(this.resourcetype, this.resourceamount);
-      console.log(`🌾 ${this.type} produced ${this.resourceamount} ${this.resourcetype} for ${this.owner.name}`);
+      //console.log(`🌾 ${this.type} produced ${this.resourceamount} ${this.resourcetype} for ${this.owner.name}`);
     }
   }
 
