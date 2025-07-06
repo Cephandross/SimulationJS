@@ -49,6 +49,7 @@ BUILDING_IMAGES.forEach(img => {
 
   // Create game world coordinator
   this.gameWorld = new GameWorld(this);
+   this.uiManager = new UIManager(this);
 
   // Set camera bounds
   const worldSize = 200 * HEX_SIZE * 2;

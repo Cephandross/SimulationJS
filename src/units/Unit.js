@@ -121,10 +121,15 @@ class Unit {
    * Move to new hex coordinates (single source of truth)
    */
   setPosition(q, r) {
-    this.coords = [q, r];
-    const [x, y] = hexToPixel(q, r);
-    this.sprite.setPosition(x, y);
+  this.coords = [q, r];
+  const [x, y] = hexToPixel(q, r);
+  this.sprite.setPosition(x, y);
+  
+  // Move team indicator with unit
+  if (this.teamIndicator) {
+    this.teamIndicator.setPosition(x + 15, y - 15);
   }
+}
 
   /**
    * Check if this unit can move to target coordinates
@@ -199,17 +204,23 @@ class Unit {
    * Remove this unit from the game
    */
   destroy() {
-    if (this.sprite) {
-      this.sprite.destroy();
-      this.sprite = null;
-    }
-    
-    // Remove from owner's unit list
-    const index = this.owner.units.indexOf(this);
-    if (index >= 0) {
-      this.owner.units.splice(index, 1);
-    }
+  if (this.sprite) {
+    this.sprite.destroy();
+    this.sprite = null;
   }
+  
+  // Clean up team indicator 
+  if (this.teamIndicator) {
+    this.teamIndicator.destroy();
+    this.teamIndicator = null;
+  }
+  
+  // Remove from owner's unit list
+  const index = this.owner.units.indexOf(this);
+  if (index >= 0) {
+    this.owner.units.splice(index, 1);
+  }
+}
 
   // Game mechanics
   isAlive() {
