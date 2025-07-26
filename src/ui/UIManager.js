@@ -1,10 +1,12 @@
-// src/ui/UIManager.js - Fixed recursion bugs with guard flags
+// src/ui/UIManager.js - Updated with Player Overview
 
 class UIManager {
   constructor(scene) {
     this.scene = scene;
     this.selectionUI = null;
     this.buildingUI = null;
+    this.adminPanel = null;
+    this.playerOverviewUI = null;  // Add player overview
     this.selectedEntity = null;
     this.selectedTile = null;
     this.ghostSprite = null;
@@ -23,12 +25,14 @@ class UIManager {
     // Create UI components
     this.selectionUI = new SelectionUI(this.scene);
     this.buildingUI = new BuildingPlacementUI(this.scene);
+    this.adminPanel = new AdminPanel(this.scene);
+    this.playerOverviewUI = new PlayerOverviewUI(this.scene);  // Create player overview
     
     // Setup input handling
     this.setupInputHandlers();
     this.setupEventListeners();
     
-    console.log('✅ UIManager initialized with building placement');
+    console.log('✅ UIManager initialized with all UI components');
   }
 
   setupInputHandlers() {
@@ -44,6 +48,20 @@ class UIManager {
     // Building menu hotkey
     this.scene.input.keyboard.on('keydown-B', () => {
       this.toggleBuildMenu();
+    });
+
+    // Admin panel hotkeys (F12 or ~ key)
+    this.scene.input.keyboard.on('keydown-F12', () => {
+      this.toggleAdminPanel();
+    });
+
+    this.scene.input.keyboard.on('keydown-BACKTICK', () => {
+      this.toggleAdminPanel();
+    });
+
+    // Player overview toggle (P key)
+    this.scene.input.keyboard.on('keydown-P', () => {
+      this.togglePlayerOverview();
     });
 
     // Category hotkeys (1-5)
@@ -210,11 +228,35 @@ class UIManager {
     }
   }
 
-  // Building placement methods
+  // UI Panel Management
   toggleBuildMenu() {
     this.buildingUI.toggle();
   }
 
+  toggleAdminPanel() {
+    this.adminPanel.toggle();
+    console.log(`⚡ Admin Panel ${this.adminPanel.isVisible ? 'opened' : 'closed'}`);
+  }
+
+  togglePlayerOverview() {
+    if (this.playerOverviewUI.panelElement.style.display === 'none') {
+      this.playerOverviewUI.panelElement.style.display = 'block';
+      console.log(`📊 Player Overview opened`);
+    } else {
+      this.playerOverviewUI.panelElement.style.display = 'none';
+      console.log(`📊 Player Overview closed`);
+    }
+  }
+
+  openAdminPanel() {
+    this.adminPanel.show();
+  }
+
+  closeAdminPanel() {
+    this.adminPanel.hide();
+  }
+
+  // Building placement methods
   startBuildingPlacement(building) {
     console.log(`🏗️ Starting placement of ${building.name}`);
     this.placementMode = building;
@@ -378,6 +420,47 @@ class UIManager {
     }
   }
 
+  // Admin Panel Integration Methods
+  enableGodMode() {
+    if (this.adminPanel) {
+      this.adminPanel.godMode = true;
+      this.adminPanel.buildInterface();
+      console.log('⚡ God Mode ENABLED via UIManager');
+    }
+  }
+
+  disableGodMode() {
+    if (this.adminPanel) {
+      this.adminPanel.godMode = false;
+      this.adminPanel.buildInterface();
+      console.log('⚡ God Mode DISABLED via UIManager');
+    }
+  }
+
+  giveResourcesCurrentPlayer(amount) {
+    if (this.adminPanel && this.adminPanel.godMode) {
+      const currentPlayer = this.getSelectedPlayer();
+      if (currentPlayer) {
+        this.adminPanel.selectedPlayer = currentPlayer;
+        this.adminPanel.giveResources(amount);
+      }
+    }
+  }
+
+  getSelectedPlayer() {
+    // Return currently selected player or first human player
+    if (this.adminPanel && this.adminPanel.selectedPlayer) {
+      return this.adminPanel.selectedPlayer;
+    }
+    return this.scene.gameWorld.players[0]; // Default to first player
+  }
+
+  setTimeSpeed(multiplier) {
+    if (this.adminPanel) {
+      this.adminPanel.setTimeSpeed(multiplier);
+    }
+  }
+
   // Clean method to reset all flags (useful for debugging)
   resetFlags() {
     this._handlingRightClick = false;
@@ -407,6 +490,14 @@ class UIManager {
     return this.placementMode;
   }
 
+  isAdminPanelOpen() {
+    return this.adminPanel && this.adminPanel.isVisible;
+  }
+
+  isPlayerOverviewOpen() {
+    return this.playerOverviewUI && this.playerOverviewUI.panelElement.style.display !== 'none';
+  }
+
   destroy() {
     this.destroyGhostPreview();
     
@@ -417,10 +508,18 @@ class UIManager {
     if (this.buildingUI) {
       this.buildingUI.destroy();
     }
+
+    if (this.adminPanel) {
+      this.adminPanel.destroy();
+    }
+
+    if (this.playerOverviewUI) {
+      this.playerOverviewUI.destroy();
+    }
   }
 }
 
-// Debug utilities for browser console
+// Enhanced debug utilities for browser console
 window.debugUIManager = function() {
   const scene = window.game?.scene?.getScene('MainScene');
   if (!scene?.uiManager) {
@@ -434,6 +533,9 @@ window.debugUIManager = function() {
   console.log('- Placement mode:', ui.placementMode?.name || 'none');
   console.log('- Handling right click:', ui._handlingRightClick);
   console.log('- Cancelling placement:', ui._cancellingPlacement);
+  console.log('- Admin panel open:', ui.isAdminPanelOpen());
+  console.log('- Player overview open:', ui.isPlayerOverviewOpen());
+  console.log('- God mode active:', ui.adminPanel?.godMode || false);
   
   return ui;
 };
@@ -443,6 +545,42 @@ window.resetUIManager = function() {
   if (ui) {
     ui.resetFlags();
     console.log('✅ UIManager flags reset');
+  }
+};
+
+// Quick admin commands for console
+window.toggleAdmin = function() {
+  const ui = window.debugUIManager();
+  if (ui) {
+    ui.toggleAdminPanel();
+  }
+};
+
+window.toggleOverview = function() {
+  const ui = window.debugUIManager();
+  if (ui) {
+    ui.togglePlayerOverview();
+  }
+};
+
+window.enableGod = function() {
+  const ui = window.debugUIManager();
+  if (ui) {
+    ui.enableGodMode();
+  }
+};
+
+window.giveResources = function(amount = 10000) {
+  const ui = window.debugUIManager();
+  if (ui) {
+    ui.giveResourcesCurrentPlayer(amount);
+  }
+};
+
+window.setSpeed = function(speed = 2) {
+  const ui = window.debugUIManager();
+  if (ui) {
+    ui.setTimeSpeed(speed);
   }
 };
 

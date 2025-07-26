@@ -40,17 +40,16 @@
   <script src="src/units/Support.js"></script>
   <script src="src/units/Utility.js"></script>
 
-<!-- Add these new lines before UIManager.js -->
-<script src="src/ui/BaseModal.js"></script>
-<script src="src/ui/components/ResourceCost.js"></script>
-<script src="src/ui/modals/BuildingPlacementUI.js"></script>
+  <!-- 9) UI Components - ORDER MATTERS -->
+  <script src="src/ui/BaseModal.js"></script>
+  <script src="src/ui/components/ResourceCost.js"></script>
+  <script src="src/ui/modals/BuildingPlacementUI.js"></script>
+  <script src="src/ui/SelectionUI.js"></script>
+  <script src="src/ui/PlayerOverviewUI.js"></script>
+  <script src="src/ui/AdminPanel.js"></script>
+  <script src="src/ui/UIManager.js"></script>
 
-<!-- Keep existing -->
-<script src="src/ui/SelectionUI.js"></script>
-<script src="src/ui/UIManager.js"></script>
-
-
-  <!-- 9) Scenes -->
+  <!-- 10) Scenes -->
   <script src="src/UIScene.js"></script>
   <script src="src/main.js"></script>
  
@@ -60,7 +59,7 @@
   </style>
 </head>
 <body>
-  <!-- 10) Bootstrap the game -->
+  <!-- 11) Bootstrap the game -->
   <script>
     window.onload = () => {
       new Phaser.Game({
