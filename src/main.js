@@ -254,7 +254,8 @@ window.MainScene = MainScene;
 
 // Bootstrap
 window.onload = () => {
-  new Phaser.Game({
+  // Store the game instance globally for debugging
+  window.game = new Phaser.Game({
     type: Phaser.AUTO,
     backgroundColor: '#1a252f',
     scale: {
@@ -265,4 +266,6 @@ window.onload = () => {
     },
     scene: [MainScene, UIScene]
   });
+  
+  console.log('🎮 Game started and available as window.game');
 };

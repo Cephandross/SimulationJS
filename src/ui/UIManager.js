@@ -1,4 +1,4 @@
-// src/ui/UIManager.js - Extended with building placement functionality
+// src/ui/UIManager.js - Fixed recursion bugs with guard flags
 
 class UIManager {
   constructor(scene) {
@@ -9,6 +9,12 @@ class UIManager {
     this.selectedTile = null;
     this.ghostSprite = null;
     this.placementMode = null;
+    
+    // Guard flags to prevent recursion
+    this.eventListenersSetup = false;
+    this._handlingRightClick = false;
+    this._cancellingPlacement = false;
+    this._emittingCancellation = false;
     
     this.initialize();
   }
@@ -79,6 +85,13 @@ class UIManager {
   }
 
   setupEventListeners() {
+    // Guard against duplicate setup
+    if (this.eventListenersSetup) {
+      console.warn('Event listeners already set up, skipping...');
+      return;
+    }
+    this.eventListenersSetup = true;
+
     // Building placement events
     this.scene.events.on('buildingPlacementStarted', (building) => {
       this.startBuildingPlacement(building);
@@ -109,11 +122,22 @@ class UIManager {
   }
 
   handleRightClick(pointer) {
-    // Right-click cancels placement or clears selection
-    if (this.placementMode) {
-      this.cancelBuildingPlacement();
-    } else {
-      this.clearSelection();
+    // Guard against recursion
+    if (this._handlingRightClick) {
+      return;
+    }
+    this._handlingRightClick = true;
+
+    try {
+      // Right-click cancels placement or clears selection
+      if (this.placementMode) {
+        this.cancelBuildingPlacement();
+      } else {
+        this.clearSelection();
+      }
+    } finally {
+      // Always clear the flag
+      this._handlingRightClick = false;
     }
   }
 
@@ -198,10 +222,26 @@ class UIManager {
   }
 
   cancelBuildingPlacement() {
-    console.log(`❌ Cancelled building placement`);
-    this.placementMode = null;
-    this.destroyGhostPreview();
-    this.scene.events.emit('buildingPlacementCancelled');
+    // Guard against recursive calls
+    if (this._cancellingPlacement) {
+      return;
+    }
+    this._cancellingPlacement = true;
+
+    try {
+      console.log(`❌ Cancelled building placement`);
+      this.placementMode = null;
+      this.destroyGhostPreview();
+      
+      // Only emit if we're not already handling a cancellation
+      if (!this._emittingCancellation) {
+        this._emittingCancellation = true;
+        this.scene.events.emit('buildingPlacementCancelled');
+        this._emittingCancellation = false;
+      }
+    } finally {
+      this._cancellingPlacement = false;
+    }
   }
 
   attemptBuildingPlacement(q, r) {
@@ -231,8 +271,26 @@ class UIManager {
       this.updateGhostPreview(this.scene.input.activePointer);
     } else {
       console.log(`❌ Failed to place ${this.placementMode.name} at [${q}, ${r}]`);
-      // TODO: Show error message to user
+      this.showPlacementError(q, r);
     }
+  }
+
+  showPlacementError(q, r) {
+    // Create temporary error indicator
+    const [x, y] = hexToPixel(q, r);
+    const errorText = this.scene.add.text(x, y, '❌', {
+      fontSize: '24px',
+      color: '#ff0000'
+    }).setOrigin(0.5, 0.5).setDepth(10);
+    
+    // Fade out and destroy
+    this.scene.tweens.add({
+      targets: errorText,
+      alpha: 0,
+      y: y - 30,
+      duration: 1000,
+      onComplete: () => errorText.destroy()
+    });
   }
 
   createGhostPreview() {
@@ -320,6 +378,14 @@ class UIManager {
     }
   }
 
+  // Clean method to reset all flags (useful for debugging)
+  resetFlags() {
+    this._handlingRightClick = false;
+    this._cancellingPlacement = false;
+    this._emittingCancellation = false;
+    console.log('🔧 Reset UIManager flags');
+  }
+
   // Utility methods
   getSelectedEntity() {
     return this.selectedEntity;
@@ -353,5 +419,31 @@ class UIManager {
     }
   }
 }
+
+// Debug utilities for browser console
+window.debugUIManager = function() {
+  const scene = window.game?.scene?.getScene('MainScene');
+  if (!scene?.uiManager) {
+    console.error('UIManager not found');
+    return;
+  }
+  
+  const ui = scene.uiManager;
+  console.log('🔧 UIManager Debug Info:');
+  console.log('- Event listeners setup:', ui.eventListenersSetup);
+  console.log('- Placement mode:', ui.placementMode?.name || 'none');
+  console.log('- Handling right click:', ui._handlingRightClick);
+  console.log('- Cancelling placement:', ui._cancellingPlacement);
+  
+  return ui;
+};
+
+window.resetUIManager = function() {
+  const ui = window.debugUIManager();
+  if (ui) {
+    ui.resetFlags();
+    console.log('✅ UIManager flags reset');
+  }
+};
 
 window.UIManager = UIManager;
