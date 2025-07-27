@@ -1,4 +1,4 @@
-// src/ui/UIManager.js - Updated with Player Overview
+// src/ui/UIManager.js - Updated with always-on horizontal overview
 
 class UIManager {
   constructor(scene) {
@@ -6,7 +6,7 @@ class UIManager {
     this.selectionUI = null;
     this.buildingUI = null;
     this.adminPanel = null;
-    this.playerOverviewUI = null;  // Add player overview
+    this.playerOverviewUI = null;
     this.selectedEntity = null;
     this.selectedTile = null;
     this.ghostSprite = null;
@@ -22,17 +22,17 @@ class UIManager {
   }
 
   initialize() {
-    // Create UI components
+    // Create UI components - PlayerOverview is now always visible
     this.selectionUI = new SelectionUI(this.scene);
     this.buildingUI = new BuildingPlacementUI(this.scene);
     this.adminPanel = new AdminPanel(this.scene);
-    this.playerOverviewUI = new PlayerOverviewUI(this.scene);  // Create player overview
+    this.playerOverviewUI = new PlayerOverviewUI(this.scene); // Always created and visible
     
     // Setup input handling
     this.setupInputHandlers();
     this.setupEventListeners();
     
-    console.log('✅ UIManager initialized with all UI components');
+    console.log('✅ UIManager initialized - PlayerOverview always visible');
   }
 
   setupInputHandlers() {
@@ -59,10 +59,7 @@ class UIManager {
       this.toggleAdminPanel();
     });
 
-    // Player overview toggle (P key)
-    this.scene.input.keyboard.on('keydown-P', () => {
-      this.togglePlayerOverview();
-    });
+    // Removed P key toggle - PlayerOverview is now always visible
 
     // Category hotkeys (1-5)
     for (let i = 1; i <= 5; i++) {
@@ -238,15 +235,7 @@ class UIManager {
     console.log(`⚡ Admin Panel ${this.adminPanel.isVisible ? 'opened' : 'closed'}`);
   }
 
-  togglePlayerOverview() {
-    if (this.playerOverviewUI.panelElement.style.display === 'none') {
-      this.playerOverviewUI.panelElement.style.display = 'block';
-      console.log(`📊 Player Overview opened`);
-    } else {
-      this.playerOverviewUI.panelElement.style.display = 'none';
-      console.log(`📊 Player Overview closed`);
-    }
-  }
+  // PlayerOverview is always visible - no toggle methods needed
 
   openAdminPanel() {
     this.adminPanel.show();
@@ -494,8 +483,9 @@ class UIManager {
     return this.adminPanel && this.adminPanel.isVisible;
   }
 
+  // PlayerOverview is always visible
   isPlayerOverviewOpen() {
-    return this.playerOverviewUI && this.playerOverviewUI.panelElement.style.display !== 'none';
+    return true; // Always visible now
   }
 
   destroy() {
@@ -534,7 +524,7 @@ window.debugUIManager = function() {
   console.log('- Handling right click:', ui._handlingRightClick);
   console.log('- Cancelling placement:', ui._cancellingPlacement);
   console.log('- Admin panel open:', ui.isAdminPanelOpen());
-  console.log('- Player overview open:', ui.isPlayerOverviewOpen());
+  console.log('- Player overview:', 'Always visible');
   console.log('- God mode active:', ui.adminPanel?.godMode || false);
   
   return ui;
@@ -553,13 +543,6 @@ window.toggleAdmin = function() {
   const ui = window.debugUIManager();
   if (ui) {
     ui.toggleAdminPanel();
-  }
-};
-
-window.toggleOverview = function() {
-  const ui = window.debugUIManager();
-  if (ui) {
-    ui.togglePlayerOverview();
   }
 };
 
