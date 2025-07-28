@@ -1,10 +1,10 @@
-// src/ui/AdminPanel.js - Fixed with Better Styling
+// src/ui/AdminPanel.js - Complete with Save/Load Integration
 
 class AdminPanel extends BaseModal {
   constructor(scene) {
     super(scene, {
       width: 400,
-      height: 700,
+      height: 800, // Increased height for save/load section
       x: window.innerWidth - 420,
       y: 20,
       title: '⚡ Admin Panel',
@@ -14,6 +14,8 @@ class AdminPanel extends BaseModal {
     this.selectedPlayer = null;
     this.timeMultiplier = 1;
     this.godMode = false;
+    this.autoSaveEnabled = false;
+    this.currentSaveSystem = 'quick'; // 'quick' or 'full'
     
     // Override container styling for better visibility
     this.container.style.cssText = `
@@ -21,7 +23,7 @@ class AdminPanel extends BaseModal {
       left: ${window.innerWidth - 420}px;
       top: 20px;
       width: 400px;
-      height: 700px;
+      height: 800px;
       background: rgba(17, 24, 39, 0.98);
       border: 2px solid rgb(75, 85, 99);
       border-radius: 8px;
@@ -55,394 +57,1012 @@ class AdminPanel extends BaseModal {
     console.log('⚡ AdminPanel hide() called');
   }
 
-  createUnitControlSection() {
-  if (!this.godMode) return;
+  // ==========================================
+  // SAVE/LOAD SYSTEM INTEGRATION
+  // ==========================================
 
-  const section = document.createElement('div');
-  section.style.cssText = `
-    padding: 12px;
-    border-bottom: 1px solid rgb(75, 85, 99);
-    background: rgba(59, 130, 246, 0.1);
-  `;
+  createSaveLoadSection() {
+    if (!this.godMode) return;
 
-  const header = document.createElement('h3');
-  header.textContent = '🎮 Unit Control';
-  header.style.cssText = 'margin: 0 0 12px 0; color: white; font-size: 16px;';
-  section.appendChild(header);
+    const section = document.createElement('div');
+    section.style.cssText = `
+      padding: 12px;
+      border-bottom: 1px solid rgb(75, 85, 99);
+      background: rgba(124, 58, 237, 0.1);
+    `;
 
-  // Unit selector dropdown
-  const unitSelector = document.createElement('select');
-  unitSelector.style.cssText = `
-    width: 100%;
-    padding: 8px;
-    margin-bottom: 12px;
-    background: rgba(31, 41, 55, 0.9);
-    border: 1px solid rgb(75, 85, 99);
-    border-radius: 4px;
-    color: white;
-    font-size: 12px;
-  `;
+    const header = document.createElement('h3');
+    header.textContent = '💾 Save & Load System';
+    header.style.cssText = 'margin: 0 0 12px 0; color: white; font-size: 16px;';
+    section.appendChild(header);
 
-  // Populate with all units
-  const allUnits = this.scene.gameWorld.getAllUnits();
-  const defaultOption = document.createElement('option');
-  defaultOption.value = '';
-  defaultOption.textContent = 'Select a unit...';
-  defaultOption.style.background = 'rgb(31, 41, 55)';
-  unitSelector.appendChild(defaultOption);
+    // Initialize persistence systems
+    this.initializePersistenceSystems();
 
-  allUnits.forEach((unit, index) => {
-    const option = document.createElement('option');
-    option.value = index;
-    option.textContent = `${unit.owner.name} ${unit.type} [${unit.coords[0]}, ${unit.coords[1]}] HP:${unit.hp}/${unit.maxHp}`;
-    option.style.background = 'rgb(31, 41, 55)';
-    option.style.color = `#${unit.owner.color.toString(16).padStart(6, '0')}`;
-    unitSelector.appendChild(option);
-  });
+    // Save system selector
+    this.createSaveSystemSelector(section);
 
-  unitSelector.onchange = (e) => {
-    if (e.target.value) {
-      this.controlledUnit = allUnits[e.target.value];
-      this.scene.uiManager.selectEntity(this.controlledUnit);
-      console.log(`🎮 Selected unit: ${this.controlledUnit.type} at [${this.controlledUnit.coords[0]}, ${this.controlledUnit.coords[1]}]`);
-      this.buildInterface();
-    } else {
-      this.controlledUnit = null;
+    // Quick actions
+    this.createQuickSaveActions(section);
+
+    // Full save/load interface
+    this.createFullSaveInterface(section);
+
+    // Storage info
+    this.createStorageInfo(section);
+
+    this.addToContent(section);
+  }
+
+  initializePersistenceSystems() {
+    // Initialize both persistence systems
+    if (!this.gamePersistence) {
+      this.gamePersistence = new GamePersistence();
     }
-  };
+    if (!this.fullWorldPersistence) {
+      this.fullWorldPersistence = new FullWorldPersistence();
+    }
+    if (!this.currentSaveSystem) {
+      this.currentSaveSystem = 'quick'; // 'quick' or 'full'
+    }
+  }
 
-  section.appendChild(unitSelector);
-
-  // Selected unit info
-  if (this.controlledUnit && this.controlledUnit.isAlive()) {
-    const unitInfo = document.createElement('div');
-    unitInfo.style.cssText = `
-      background: rgba(31, 41, 55, 0.6);
-      padding: 8px;
-      border-radius: 4px;
-      font-size: 11px;
-      color: rgb(156, 163, 175);
-      border: 1px solid rgba(75, 85, 99, 0.5);
+  createSaveSystemSelector(section) {
+    const selectorContainer = document.createElement('div');
+    selectorContainer.style.cssText = `
+      display: flex;
       margin-bottom: 12px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgb(75, 85, 99);
     `;
-    
-    const stats = this.controlledUnit.getCombatStats();
-    unitInfo.innerHTML = `
-      <div style="color: #${this.controlledUnit.owner.color.toString(16).padStart(6, '0')}; font-weight: bold; margin-bottom: 4px;">
-        ${this.controlledUnit.type} (Level ${stats.level})
-      </div>
-      <div>Position: [${this.controlledUnit.coords[0]}, ${this.controlledUnit.coords[1]}]</div>
-      <div>HP: ${stats.hp}/${stats.maxHp} | ATK: ${stats.attack} | DEF: ${stats.defense} | RNG: ${stats.range}</div>
-      <div>Experience: ${stats.experience} | Owner: ${this.controlledUnit.owner.name}</div>
-      ${this.controlledUnit.destination ? `<div style="color: #10b981;">Moving to [${this.controlledUnit.destination.q}, ${this.controlledUnit.destination.r}]</div>` : ''}
+
+    const quickBtn = document.createElement('button');
+    quickBtn.textContent = 'Quick Save (5MB)';
+    quickBtn.style.cssText = `
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      background: ${this.currentSaveSystem === 'quick' ? '#7c3aed' : '#374151'};
+      color: white;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s;
     `;
-    section.appendChild(unitInfo);
+    quickBtn.onclick = () => this.switchSaveSystem('quick');
 
-    // Control buttons
-    const controlButtons = document.createElement('div');
-    controlButtons.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;';
+    const fullBtn = document.createElement('button');
+    fullBtn.textContent = 'Full World (50MB)';
+    fullBtn.style.cssText = `
+      flex: 1;
+      padding: 8px 12px;
+      border: none;
+      background: ${this.currentSaveSystem === 'full' ? '#7c3aed' : '#374151'};
+      color: white;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s;
+    `;
+    fullBtn.onclick = () => this.switchSaveSystem('full');
 
-    const controlActions = [
-      { label: '🏃 Move Here', action: () => this.startMoveOrder(), color: '#10b981' },
-      { label: '⚔️ Attack Target', action: () => this.startAttackOrder(), color: '#ef4444' },
-      { label: '🎯 Chase Unit', action: () => this.startChaseOrder(), color: '#f59e0b' },
-      { label: '🛑 Stop Orders', action: () => this.stopUnitOrders(), color: '#6b7280' },
-      { label: '💚 Heal Target', action: () => this.startHealOrder(), color: '#22c55e' },
-      { label: '🔄 Auto Battle', action: () => this.toggleAutoBattle(), color: '#8b5cf6' }
-    ];
+    selectorContainer.appendChild(quickBtn);
+    selectorContainer.appendChild(fullBtn);
+    section.appendChild(selectorContainer);
 
-    controlActions.forEach(({ label, action, color }) => {
-      const btn = document.createElement('button');
-      btn.textContent = label;
-      btn.style.cssText = `
-        padding: 8px;
-        border: none;
-        border-radius: 4px;
-        background: ${color};
-        color: white;
-        cursor: pointer;
-        font-size: 11px;
-        font-weight: 500;
-        transition: all 0.2s;
+    // System description
+    const description = document.createElement('div');
+    description.style.cssText = `
+      font-size: 10px;
+      color: rgb(156, 163, 175);
+      text-align: center;
+      margin-bottom: 12px;
+      padding: 6px;
+      background: rgba(31, 41, 55, 0.5);
+      border-radius: 4px;
+    `;
+
+    if (this.currentSaveSystem === 'quick') {
+      description.innerHTML = `
+        <strong>Quick Save:</strong> Game state only, world regenerated<br>
+        Fast saves, smaller files, uses localStorage
       `;
-      
-      btn.onmouseover = () => {
-        btn.style.transform = 'scale(1.05)';
-        btn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
-      };
-      
-      btn.onmouseout = () => {
-        btn.style.transform = 'scale(1)';
-        btn.style.boxShadow = 'none';
-      };
-      
-      btn.onclick = action;
-      controlButtons.appendChild(btn);
-    });
+    } else {
+      description.innerHTML = `
+        <strong>Full World:</strong> Complete terrain preservation<br>
+        Perfect world recreation, larger files, uses IndexedDB
+      `;
+    }
 
-    section.appendChild(controlButtons);
+    section.appendChild(description);
+  }
 
-    // Quick unit stats modification (god mode)
-    const statsSection = document.createElement('div');
-    statsSection.style.cssText = `
-      background: rgba(168, 85, 247, 0.1);
+  createQuickSaveActions(section) {
+    const quickActions = document.createElement('div');
+    quickActions.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;';
+
+    const quickSaveBtn = document.createElement('button');
+    quickSaveBtn.innerHTML = this.currentSaveSystem === 'quick' ? '⚡ Quick Save' : '🌍 Full Save';
+    quickSaveBtn.style.cssText = `
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      background: #059669;
+      color: white;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+    `;
+    quickSaveBtn.onclick = () => this.performQuickSave();
+
+    const quickLoadBtn = document.createElement('button');
+    quickLoadBtn.innerHTML = this.currentSaveSystem === 'quick' ? '⚡ Quick Load' : '🌍 Full Load';
+    quickLoadBtn.style.cssText = `
+      padding: 10px;
+      border: none;
+      border-radius: 4px;
+      background: #0d9488;
+      color: white;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: all 0.2s;
+    `;
+    quickLoadBtn.onclick = () => this.performQuickLoad();
+
+    quickActions.appendChild(quickSaveBtn);
+    quickActions.appendChild(quickLoadBtn);
+    section.appendChild(quickActions);
+  }
+
+  createFullSaveInterface(section) {
+    const interfaceContainer = document.createElement('div');
+    interfaceContainer.style.cssText = 'margin-bottom: 12px;';
+
+    // Save name input
+    const saveNameInput = document.createElement('input');
+    saveNameInput.type = 'text';
+    saveNameInput.placeholder = 'Enter save name...';
+    saveNameInput.style.cssText = `
+      width: 100%;
       padding: 8px;
+      margin-bottom: 8px;
+      background: rgba(31, 41, 55, 0.9);
+      border: 1px solid rgb(75, 85, 99);
+      border-radius: 4px;
+      color: white;
+      font-size: 12px;
+      box-sizing: border-box;
+    `;
+    this.saveNameInput = saveNameInput;
+
+    // Save dropdown (dynamically populated)
+    const saveDropdown = document.createElement('select');
+    saveDropdown.style.cssText = `
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 8px;
+      background: rgba(31, 41, 55, 0.9);
+      border: 1px solid rgb(75, 85, 99);
+      border-radius: 4px;
+      color: white;
+      font-size: 11px;
+    `;
+    this.saveDropdown = saveDropdown;
+
+    // Update dropdown based on current system
+    this.updateSaveDropdown();
+
+    // Action buttons
+    const actionButtons = document.createElement('div');
+    actionButtons.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px;';
+
+    const saveBtn = document.createElement('button');
+    saveBtn.textContent = '💾 Save';
+    saveBtn.style.cssText = `
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      background: rgba(124, 58, 237, 0.8);
+      color: white;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s;
+    `;
+    saveBtn.onclick = () => this.saveToNamedSlot();
+
+    const loadBtn = document.createElement('button');
+    loadBtn.textContent = '📁 Load';
+    loadBtn.style.cssText = `
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      background: rgba(5, 150, 105, 0.8);
+      color: white;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s;
+    `;
+    loadBtn.onclick = () => this.loadFromNamedSlot();
+
+    const deleteBtn = document.createElement('button');
+    deleteBtn.textContent = '🗑️ Delete';
+    deleteBtn.style.cssText = `
+      padding: 8px;
+      border: none;
+      border-radius: 4px;
+      background: rgba(239, 68, 68, 0.8);
+      color: white;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 500;
+      transition: all 0.2s;
+    `;
+    deleteBtn.onclick = () => this.deleteNamedSlot();
+
+    actionButtons.appendChild(saveBtn);
+    actionButtons.appendChild(loadBtn);
+    actionButtons.appendChild(deleteBtn);
+
+    interfaceContainer.appendChild(saveNameInput);
+    interfaceContainer.appendChild(saveDropdown);
+    interfaceContainer.appendChild(actionButtons);
+    section.appendChild(interfaceContainer);
+
+    // Auto-save toggle (only for quick saves)
+    if (this.currentSaveSystem === 'quick') {
+      this.createAutoSaveToggle(section);
+    }
+  }
+
+  createAutoSaveToggle(section) {
+    const autoSaveContainer = document.createElement('div');
+    autoSaveContainer.style.cssText = `
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px;
+      background: rgba(31, 41, 55, 0.5);
       border-radius: 4px;
       margin-bottom: 8px;
     `;
 
-    const statsTitle = document.createElement('div');
-    statsTitle.textContent = '⚡ Quick Modifications';
-    statsTitle.style.cssText = 'font-size: 12px; font-weight: bold; margin-bottom: 6px; color: white;';
-    statsSection.appendChild(statsTitle);
+    const autoSaveLabel = document.createElement('span');
+    autoSaveLabel.textContent = 'Auto-save (5min):';
+    autoSaveLabel.style.cssText = 'font-size: 11px; color: rgb(156, 163, 175);';
 
-    const quickMods = document.createElement('div');
-    quickMods.style.cssText = 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;';
+    const autoSaveToggle = document.createElement('button');
+    autoSaveToggle.textContent = this.autoSaveEnabled ? 'ON' : 'OFF';
+    autoSaveToggle.style.cssText = `
+      padding: 4px 12px;
+      border: none;
+      border-radius: 3px;
+      background: ${this.autoSaveEnabled ? '#059669' : '#6b7280'};
+      color: white;
+      cursor: pointer;
+      font-size: 10px;
+      font-weight: bold;
+      transition: all 0.2s;
+    `;
+    autoSaveToggle.onclick = () => this.toggleAutoSave(autoSaveToggle);
 
-    const modActions = [
-      { label: '+10 HP', action: () => this.modifyUnit('hp', 10) },
-      { label: '+5 ATK', action: () => this.modifyUnit('attack', 5) },
-      { label: '+5 DEF', action: () => this.modifyUnit('defense', 5) },
-      { label: 'Full Heal', action: () => this.modifyUnit('heal', 0) },
-      { label: '+1 Range', action: () => this.modifyUnit('range', 1) },
-      { label: 'Level Up', action: () => this.modifyUnit('levelup', 0) }
-    ];
+    autoSaveContainer.appendChild(autoSaveLabel);
+    autoSaveContainer.appendChild(autoSaveToggle);
+    section.appendChild(autoSaveContainer);
+  }
 
-    modActions.forEach(({ label, action }) => {
-      const btn = document.createElement('button');
-      btn.textContent = label;
-      btn.style.cssText = `
-        padding: 4px;
-        border: none;
-        border-radius: 3px;
-        background: rgba(168, 85, 247, 0.7);
-        color: white;
-        cursor: pointer;
-        font-size: 10px;
-        transition: all 0.2s;
-      `;
-      btn.onclick = action;
-      quickMods.appendChild(btn);
+  createStorageInfo(section) {
+    const storageContainer = document.createElement('div');
+    storageContainer.style.cssText = `
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin-top: 8px;
+    `;
+
+    // Quick save storage info
+    const quickStorageInfo = this.gamePersistence.getStorageUsage();
+    const quickInfo = document.createElement('div');
+    quickInfo.style.cssText = `
+      font-size: 10px;
+      color: rgb(107, 114, 128);
+      text-align: center;
+      padding: 6px;
+      background: rgba(31, 41, 55, 0.3);
+      border-radius: 3px;
+    `;
+    quickInfo.innerHTML = `
+      <div style="font-weight: bold; color: #10b981;">Quick Saves</div>
+      <div>${quickStorageInfo.totalSizeMB}MB used</div>
+      <div>${quickStorageInfo.slots.length} saves</div>
+    `;
+
+    // Full world storage info (placeholder for now)
+    const fullInfo = document.createElement('div');
+    fullInfo.style.cssText = `
+      font-size: 10px;
+      color: rgb(107, 114, 128);
+      text-align: center;
+      padding: 6px;
+      background: rgba(31, 41, 55, 0.3);
+      border-radius: 3px;
+    `;
+    fullInfo.innerHTML = `
+      <div style="font-weight: bold; color: #7c3aed;">Full Worlds</div>
+      <div>IndexedDB</div>
+      <div>~10-20MB each</div>
+    `;
+
+    storageContainer.appendChild(quickInfo);
+    storageContainer.appendChild(fullInfo);
+    section.appendChild(storageContainer);
+  }
+
+  // ==========================================
+  // SAVE/LOAD ACTION METHODS
+  // ==========================================
+
+  switchSaveSystem(system) {
+    this.currentSaveSystem = system;
+    this.buildInterface(); // Refresh interface
+    console.log(`🔄 Switched to ${system} save system`);
+  }
+
+  async performQuickSave() {
+    const slotName = this.currentSaveSystem === 'quick' ? 'quicksave' : 'fullworld_quick';
+    
+    try {
+      if (this.currentSaveSystem === 'quick') {
+        const result = this.gamePersistence.saveGame(
+          this.scene, 
+          slotName, 
+          'Quick save from admin panel'
+        );
+        
+        if (result.success) {
+          this.showNotification('⚡ Quick saved successfully', 'success');
+        } else {
+          this.showNotification('❌ Quick save failed: ' + result.error, 'error');
+        }
+      } else {
+        const result = await this.fullWorldPersistence.saveFullWorld(
+          this.scene,
+          slotName,
+          'Full world quick save from admin panel'
+        );
+        
+        if (result.success) {
+          this.showNotification(`🌍 Full world saved (${(result.size/(1024*1024)).toFixed(1)}MB)`, 'success');
+        } else {
+          this.showNotification('❌ Full world save failed: ' + result.error, 'error');
+        }
+      }
+    } catch (error) {
+      this.showNotification('❌ Save failed: ' + error.message, 'error');
+    }
+  }
+
+  async performQuickLoad() {
+    const slotName = this.currentSaveSystem === 'quick' ? 'quicksave' : 'fullworld_quick';
+    
+    if (!confirm(`Load ${this.currentSaveSystem} save? Current progress will be lost.`)) {
+      return;
+    }
+
+    try {
+      if (this.currentSaveSystem === 'quick') {
+        const loadResult = this.gamePersistence.loadGame(slotName);
+        
+        if (loadResult.success) {
+          const restoreResult = this.gamePersistence.restoreGameState(this.scene, loadResult.gameState);
+          
+          if (restoreResult.success) {
+            this.showNotification('⚡ Quick loaded successfully', 'success');
+            this.buildInterface();
+          } else {
+            this.showNotification('❌ Restore failed: ' + restoreResult.error, 'error');
+          }
+        } else {
+          this.showNotification('❌ Quick load failed: ' + loadResult.error, 'error');
+        }
+      } else {
+        // For full world, we need to get the save ID from the slot name
+        const saves = await this.fullWorldPersistence.getAllSaves();
+        const targetSave = saves.find(s => s.name === slotName);
+        
+        if (targetSave) {
+          const result = await this.fullWorldPersistence.loadFullWorld(targetSave.id, this.scene);
+          
+          if (result.success) {
+            this.showNotification('🌍 Full world loaded successfully', 'success');
+            this.buildInterface();
+          } else {
+            this.showNotification('❌ Full world load failed: ' + result.error, 'error');
+          }
+        } else {
+          this.showNotification('❌ No full world quick save found', 'error');
+        }
+      }
+    } catch (error) {
+      this.showNotification('❌ Load failed: ' + error.message, 'error');
+    }
+  }
+
+  async saveToNamedSlot() {
+    const saveName = this.saveNameInput.value.trim();
+    if (!saveName) {
+      this.showNotification('❌ Please enter a save name', 'error');
+      return;
+    }
+
+    try {
+      if (this.currentSaveSystem === 'quick') {
+        const result = this.gamePersistence.saveGame(
+          this.scene, 
+          saveName, 
+          `Manual save: ${saveName}`
+        );
+
+        if (result.success) {
+          this.showNotification(`💾 Saved as "${saveName}"`, 'success');
+          this.updateSaveDropdown();
+          this.saveNameInput.value = '';
+        } else {
+          this.showNotification('❌ Save failed: ' + result.error, 'error');
+        }
+      } else {
+        const result = await this.fullWorldPersistence.saveFullWorld(
+          this.scene,
+          saveName,
+          `Full world save: ${saveName}`
+        );
+
+        if (result.success) {
+          this.showNotification(`🌍 Full world saved as "${saveName}" (${(result.size/(1024*1024)).toFixed(1)}MB)`, 'success');
+          this.updateSaveDropdown();
+          this.saveNameInput.value = '';
+        } else {
+          this.showNotification('❌ Full world save failed: ' + result.error, 'error');
+        }
+      }
+    } catch (error) {
+      this.showNotification('❌ Save failed: ' + error.message, 'error');
+    }
+  }
+
+  async loadFromNamedSlot() {
+    const selectedValue = this.saveDropdown.value;
+    if (!selectedValue) {
+      this.showNotification('❌ Please select a save slot', 'error');
+      return;
+    }
+
+    const [saveName, saveId] = selectedValue.split('|');
+    
+    if (!confirm(`Load "${saveName}"? Current progress will be lost.`)) {
+      return;
+    }
+
+    try {
+      if (this.currentSaveSystem === 'quick') {
+        const loadResult = this.gamePersistence.loadGame(saveName);
+        
+        if (loadResult.success) {
+          const restoreResult = this.gamePersistence.restoreGameState(this.scene, loadResult.gameState);
+          
+          if (restoreResult.success) {
+            this.showNotification(`💾 Loaded "${saveName}"`, 'success');
+            this.buildInterface();
+          } else {
+            this.showNotification('❌ Restore failed: ' + restoreResult.error, 'error');
+          }
+        } else {
+          this.showNotification('❌ Load failed: ' + loadResult.error, 'error');
+        }
+      } else {
+        const result = await this.fullWorldPersistence.loadFullWorld(saveId, this.scene);
+        
+        if (result.success) {
+          this.showNotification(`🌍 Loaded "${saveName}"`, 'success');
+          this.buildInterface();
+        } else {
+          this.showNotification('❌ Full world load failed: ' + result.error, 'error');
+        }
+      }
+    } catch (error) {
+      this.showNotification('❌ Load failed: ' + error.message, 'error');
+    }
+  }
+
+  async deleteNamedSlot() {
+    const selectedValue = this.saveDropdown.value;
+    if (!selectedValue) {
+      this.showNotification('❌ Please select a save slot', 'error');
+      return;
+    }
+
+    const [saveName, saveId] = selectedValue.split('|');
+    
+    if (!confirm(`Delete save "${saveName}"?`)) {
+      return;
+    }
+
+    try {
+      if (this.currentSaveSystem === 'quick') {
+        if (this.gamePersistence.deleteSave(saveName)) {
+          this.showNotification(`🗑️ Deleted "${saveName}"`, 'success');
+          this.updateSaveDropdown();
+        } else {
+          this.showNotification('❌ Delete failed', 'error');
+        }
+      } else {
+        // For full world saves, we'd need to implement deletion in FullWorldPersistence
+        // For now, show a placeholder message
+        this.showNotification('🚧 Full world save deletion not yet implemented', 'warning');
+      }
+    } catch (error) {
+      this.showNotification('❌ Delete failed: ' + error.message, 'error');
+    }
+  }
+
+  async updateSaveDropdown() {
+    if (!this.saveDropdown) return;
+
+    this.saveDropdown.innerHTML = '';
+
+    // Add default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select save slot...';
+    defaultOption.style.background = 'rgb(31, 41, 55)';
+    this.saveDropdown.appendChild(defaultOption);
+
+    try {
+      if (this.currentSaveSystem === 'quick') {
+        const saves = this.gamePersistence.getSaveSlots();
+        saves.forEach(save => {
+          const option = document.createElement('option');
+          option.value = save.name;
+          const date = new Date(save.timestamp).toLocaleDateString();
+          const time = new Date(save.timestamp).toLocaleTimeString();
+          const size = (save.size / 1024).toFixed(1);
+          option.textContent = `${save.name} (${date} ${time}) [${size}KB]`;
+          option.style.background = 'rgb(31, 41, 55)';
+          option.style.color = save.isValid ? 'white' : '#ef4444';
+          this.saveDropdown.appendChild(option);
+        });
+      } else {
+        const saves = await this.fullWorldPersistence.getAllSaves();
+        saves.forEach(save => {
+          const option = document.createElement('option');
+          option.value = `${save.name}|${save.id}`;
+          const date = new Date(save.timestamp).toLocaleDateString();
+          const time = new Date(save.timestamp).toLocaleTimeString();
+          const size = (save.metadata.compressedSize / (1024 * 1024)).toFixed(1);
+          option.textContent = `${save.name} (${date} ${time}) [${size}MB]`;
+          option.style.background = 'rgb(31, 41, 55)';
+          option.style.color = 'white';
+          this.saveDropdown.appendChild(option);
+        });
+      }
+    } catch (error) {
+      console.warn('Could not update save dropdown:', error);
+    }
+  }
+
+  toggleAutoSave(toggleButton) {
+    this.autoSaveEnabled = !this.autoSaveEnabled;
+
+    if (this.autoSaveEnabled) {
+      this.gamePersistence.startAutoSave(this.scene, 5); // 5 minute intervals
+      toggleButton.textContent = 'ON';
+      toggleButton.style.background = '#059669';
+      this.showNotification('⏰ Auto-save enabled (5min)', 'success');
+    } else {
+      this.gamePersistence.stopAutoSave();
+      toggleButton.textContent = 'OFF';
+      toggleButton.style.background = '#6b7280';
+      this.showNotification('⏰ Auto-save disabled', 'info');
+    }
+  }
+
+  // ==========================================
+  // EXISTING METHODS (keeping all existing functionality)
+  // ==========================================
+
+  createUnitControlSection() {
+    if (!this.godMode) return;
+
+    const section = document.createElement('div');
+    section.style.cssText = `
+      padding: 12px;
+      border-bottom: 1px solid rgb(75, 85, 99);
+      background: rgba(59, 130, 246, 0.1);
+    `;
+
+    const header = document.createElement('h3');
+    header.textContent = '🎮 Unit Control';
+    header.style.cssText = 'margin: 0 0 12px 0; color: white; font-size: 16px;';
+    section.appendChild(header);
+
+    // Unit selector dropdown
+    const unitSelector = document.createElement('select');
+    unitSelector.style.cssText = `
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 12px;
+      background: rgba(31, 41, 55, 0.9);
+      border: 1px solid rgb(75, 85, 99);
+      border-radius: 4px;
+      color: white;
+      font-size: 12px;
+    `;
+
+    // Populate with all units
+    const allUnits = this.scene.gameWorld.getAllUnits();
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = 'Select a unit...';
+    defaultOption.style.background = 'rgb(31, 41, 55)';
+    unitSelector.appendChild(defaultOption);
+
+    allUnits.forEach((unit, index) => {
+      const option = document.createElement('option');
+      option.value = index;
+      option.textContent = `${unit.owner.name} ${unit.type} [${unit.coords[0]}, ${unit.coords[1]}] HP:${unit.hp}/${unit.maxHp}`;
+      option.style.background = 'rgb(31, 41, 55)';
+      option.style.color = `#${unit.owner.color.toString(16).padStart(6, '0')}`;
+      unitSelector.appendChild(option);
     });
 
-    statsSection.appendChild(quickMods);
-    section.appendChild(statsSection);
-  }
-
-  // Instructions
-  const instructions = document.createElement('div');
-  instructions.textContent = this.controlledUnit ? 
-    'Click buttons then click on map for orders' : 
-    'Select a unit from dropdown to control';
-  instructions.style.cssText = `
-    text-align: center;
-    color: rgb(156, 163, 175);
-    font-size: 11px;
-    font-style: italic;
-  `;
-  section.appendChild(instructions);
-
-  this.addToContent(section);
-}
-
-// Unit control methods
-startMoveOrder() {
-  if (!this.controlledUnit) return;
-  console.log(`🏃 Click on map to move ${this.controlledUnit.type}`);
-  this.orderMode = { type: 'move', unit: this.controlledUnit };
-  this.setupOrderListener();
-}
-
-startAttackOrder() {
-  if (!this.controlledUnit) return;
-  console.log(`⚔️ Click on enemy unit to attack with ${this.controlledUnit.type}`);
-  this.orderMode = { type: 'attack', unit: this.controlledUnit };
-  this.setupOrderListener();
-}
-
-startChaseOrder() {
-  if (!this.controlledUnit) return;
-  console.log(`🎯 Click on enemy unit to chase and attack with ${this.controlledUnit.type}`);
-  this.orderMode = { type: 'chase', unit: this.controlledUnit };
-  this.setupOrderListener();
-}
-
-startHealOrder() {
-  if (!this.controlledUnit) return;
-  console.log(`💚 Click on friendly unit to heal with ${this.controlledUnit.type}`);
-  this.orderMode = { type: 'heal', unit: this.controlledUnit };
-  this.setupOrderListener();
-}
-
-stopUnitOrders() {
-  if (!this.controlledUnit) return;
-  this.controlledUnit.destination = null;
-  this.controlledUnit.mission = null;
-  this.controlledUnit.chaseTarget = null;
-  console.log(`🛑 Stopped all orders for ${this.controlledUnit.type}`);
-  this.buildInterface();
-}
-
-toggleAutoBattle() {
-  if (!this.controlledUnit) return;
-  
-  this.controlledUnit.autoBattle = !this.controlledUnit.autoBattle;
-  if (this.controlledUnit.autoBattle) {
-    console.log(`🤖 ${this.controlledUnit.type} auto-battle ENABLED`);
-    this.startUnitAutoBattle(this.controlledUnit);
-  } else {
-    console.log(`🤖 ${this.controlledUnit.type} auto-battle DISABLED`);
-  }
-  this.buildInterface();
-}
-
-modifyUnit(type, amount) {
-  if (!this.controlledUnit) return;
-  
-  switch(type) {
-    case 'hp':
-      this.controlledUnit.maxHp += amount;
-      this.controlledUnit.hp += amount;
-      break;
-    case 'attack':
-      this.controlledUnit.attack = (this.controlledUnit.attack || 0) + amount;
-      break;
-    case 'defense':
-      this.controlledUnit.defense = (this.controlledUnit.defense || 0) + amount;
-      break;
-    case 'range':
-      this.controlledUnit.range = (this.controlledUnit.range || 1) + amount;
-      break;
-    case 'heal':
-      this.controlledUnit.hp = this.controlledUnit.maxHp;
-      break;
-    case 'levelup':
-      this.controlledUnit.gainExperience(100); // Force level up
-      break;
-  }
-  
-  console.log(`⚡ Modified ${this.controlledUnit.type}: ${type} ${amount > 0 ? '+' : ''}${amount}`);
-  this.buildInterface();
-}
-
-// Enhanced order listener with chase functionality
-setupOrderListener() {
-  const orderListener = (pointer) => {
-    if (!this.orderMode) return;
-
-    const [q, r] = pixelToHex(pointer.worldX, pointer.worldY);
-    const unit = this.orderMode.unit;
-
-    if (this.orderMode.type === 'move') {
-      unit.moveTo([q, r]);
-      console.log(`🏃 ${unit.type} ordered to move to [${q}, ${r}]`);
-      
-    } else if (this.orderMode.type === 'attack') {
-      const target = this.scene.gameWorld.getUnitAt(q, r);
-      if (target && target.owner !== unit.owner) {
-        const result = unit.attackUnit(target);
-        console.log(`⚔️ Attack result:`, result);
+    unitSelector.onchange = (e) => {
+      if (e.target.value) {
+        this.controlledUnit = allUnits[e.target.value];
+        this.scene.uiManager.selectEntity(this.controlledUnit);
+        console.log(`🎮 Selected unit: ${this.controlledUnit.type} at [${this.controlledUnit.coords[0]}, ${this.controlledUnit.coords[1]}]`);
+        this.buildInterface();
       } else {
-        console.warn('❌ No valid enemy target at that location');
+        this.controlledUnit = null;
       }
+    };
+
+    section.appendChild(unitSelector);
+
+    // Selected unit info and controls (keeping existing implementation)
+    if (this.controlledUnit && this.controlledUnit.isAlive()) {
+      const unitInfo = document.createElement('div');
+      unitInfo.style.cssText = `
+        background: rgba(31, 41, 55, 0.6);
+        padding: 8px;
+        border-radius: 4px;
+        font-size: 11px;
+        color: rgb(156, 163, 175);
+        border: 1px solid rgba(75, 85, 99, 0.5);
+        margin-bottom: 12px;
+      `;
       
-    } else if (this.orderMode.type === 'chase') {
-      const target = this.scene.gameWorld.getUnitAt(q, r);
-      if (target && target.owner !== unit.owner) {
-        unit.chaseTarget = target;
-        unit.mission = { type: 'chase', target: target };
-        this.startChaseSequence(unit, target);
-        console.log(`🎯 ${unit.type} now chasing ${target.type}`);
-      } else {
-        console.warn('❌ No valid enemy target to chase');
-      }
-      
-    } else if (this.orderMode.type === 'heal') {
-      const target = this.scene.gameWorld.getUnitAt(q, r);
-      if (target && target.owner === unit.owner && unit.healUnit) {
-        unit.healUnit(target);
-      } else {
-        console.warn('❌ No valid friendly target to heal');
-      }
-    }
+      const stats = this.controlledUnit.getCombatStats();
+      unitInfo.innerHTML = `
+        <div style="color: #${this.controlledUnit.owner.color.toString(16).padStart(6, '0')}; font-weight: bold; margin-bottom: 4px;">
+          ${this.controlledUnit.type} (Level ${stats.level})
+        </div>
+        <div>Position: [${this.controlledUnit.coords[0]}, ${this.controlledUnit.coords[1]}]</div>
+        <div>HP: ${stats.hp}/${stats.maxHp} | ATK: ${stats.attack} | DEF: ${stats.defense} | RNG: ${stats.range}</div>
+        <div>Experience: ${stats.experience} | Owner: ${this.controlledUnit.owner.name}</div>
+        ${this.controlledUnit.destination ? `<div style="color: #10b981;">Moving to [${this.controlledUnit.destination.q}, ${this.controlledUnit.destination.r}]</div>` : ''}
+      `;
+      section.appendChild(unitInfo);
 
-    // Remove listener after one use
-    this.scene.input.off('pointerdown', orderListener);
-    this.orderMode = null;
-    this.buildInterface();
-  };
+      // Control buttons (keeping existing implementation)
+      const controlButtons = document.createElement('div');
+      controlButtons.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;';
 
-  this.scene.input.once('pointerdown', orderListener);
-}
+      const controlActions = [
+        { label: '🏃 Move Here', action: () => this.startMoveOrder(), color: '#10b981' },
+        { label: '⚔️ Attack Target', action: () => this.startAttackOrder(), color: '#ef4444' },
+        { label: '🎯 Chase Unit', action: () => this.startChaseOrder(), color: '#f59e0b' },
+        { label: '🛑 Stop Orders', action: () => this.stopUnitOrders(), color: '#6b7280' },
+        { label: '💚 Heal Target', action: () => this.startHealOrder(), color: '#22c55e' },
+        { label: '🔄 Auto Battle', action: () => this.toggleAutoBattle(), color: '#8b5cf6' }
+      ];
 
-// Chase sequence - unit follows target and attacks when in range
-startChaseSequence(chaser, target) {
-  const chaseUpdate = () => {
-    if (!chaser.isAlive() || !target.isAlive() || !chaser.chaseTarget) {
-      return; // Stop chasing
-    }
-
-    // Move towards target
-    const [chaserQ, chaserR] = chaser.coords;
-    const [targetQ, targetR] = target.coords;
-    
-    // Check if in attack range
-    if (chaser.canAttack(target)) {
-      // Attack!
-      const result = chaser.attackUnit(target);
-      console.log(`🎯 Chase attack: ${chaser.type} → ${target.type}`, result);
-      
-      // Continue chasing if target survives
-      if (target.isAlive()) {
-        setTimeout(chaseUpdate, 1000); // Attack every second
-      }
-    } else {
-      // Move closer
-      chaser.moveTo([targetQ, targetR]);
-      setTimeout(chaseUpdate, 500); // Check every half second
-    }
-  };
-
-  chaseUpdate();
-}
-
-// Auto-battle for individual units
-startUnitAutoBattle(unit) {
-  if (!unit.autoBattle || !unit.isAlive()) return;
-
-  const battleUpdate = () => {
-    if (!unit.autoBattle || !unit.isAlive()) return;
-
-    // Find nearest enemy
-    const allUnits = this.scene.gameWorld.getAllUnits();
-    const enemies = allUnits.filter(other => 
-      other.owner !== unit.owner && 
-      other.isAlive() && 
-      unit.hexDistance(...unit.coords, ...other.coords) <= 5 // Within 5 hexes
-    );
-
-    if (enemies.length > 0) {
-      // Attack closest enemy if in range
-      const closest = enemies.reduce((prev, curr) => {
-        const prevDist = unit.hexDistance(...unit.coords, ...prev.coords);
-        const currDist = unit.hexDistance(...unit.coords, ...curr.coords);
-        return currDist < prevDist ? curr : prev;
+      controlActions.forEach(({ label, action, color }) => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.style.cssText = `
+          padding: 8px;
+          border: none;
+          border-radius: 4px;
+          background: ${color};
+          color: white;
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 500;
+          transition: all 0.2s;
+        `;
+        
+        btn.onmouseover = () => {
+          btn.style.transform = 'scale(1.05)';
+          btn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        };
+        
+        btn.onmouseout = () => {
+          btn.style.transform = 'scale(1)';
+          btn.style.boxShadow = 'none';
+        };
+        
+        btn.onclick = action;
+        controlButtons.appendChild(btn);
       });
 
-      if (unit.canAttack(closest)) {
-        unit.attackUnit(closest);
-      } else {
-        // Move towards closest enemy
-        unit.moveTo(closest.coords);
-      }
+      section.appendChild(controlButtons);
+
+      // Quick unit stats modification (god mode)
+      const statsSection = document.createElement('div');
+      statsSection.style.cssText = `
+        background: rgba(168, 85, 247, 0.1);
+        padding: 8px;
+        border-radius: 4px;
+        margin-bottom: 8px;
+      `;
+
+      const statsTitle = document.createElement('div');
+      statsTitle.textContent = '⚡ Quick Modifications';
+      statsTitle.style.cssText = 'font-size: 12px; font-weight: bold; margin-bottom: 6px; color: white;';
+      statsSection.appendChild(statsTitle);
+
+      const quickMods = document.createElement('div');
+      quickMods.style.cssText = 'display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px;';
+
+      const modActions = [
+        { label: '+10 HP', action: () => this.modifyUnit('hp', 10) },
+        { label: '+5 ATK', action: () => this.modifyUnit('attack', 5) },
+        { label: '+5 DEF', action: () => this.modifyUnit('defense', 5) },
+        { label: 'Full Heal', action: () => this.modifyUnit('heal', 0) },
+        { label: '+1 Range', action: () => this.modifyUnit('range', 1) },
+        { label: 'Level Up', action: () => this.modifyUnit('levelup', 0) }
+      ];
+
+      modActions.forEach(({ label, action }) => {
+        const btn = document.createElement('button');
+        btn.textContent = label;
+        btn.style.cssText = `
+          padding: 4px;
+          border: none;
+          border-radius: 3px;
+          background: rgba(168, 85, 247, 0.7);
+          color: white;
+          cursor: pointer;
+          font-size: 10px;
+          transition: all 0.2s;
+        `;
+        btn.onclick = action;
+        quickMods.appendChild(btn);
+      });
+
+      statsSection.appendChild(quickMods);
+      section.appendChild(statsSection);
     }
 
-    // Continue auto-battle
-    setTimeout(battleUpdate, 1500);
-  };
+    // Instructions
+    const instructions = document.createElement('div');
+    instructions.textContent = this.controlledUnit ? 
+      'Click buttons then click on map for orders' : 
+      'Select a unit from dropdown to control';
+    instructions.style.cssText = `
+      text-align: center;
+      color: rgb(156, 163, 175);
+      font-size: 11px;
+      font-style: italic;
+    `;
+    section.appendChild(instructions);
 
-  battleUpdate();
-}
+    this.addToContent(section);
+  }
+
+  // Unit control methods
+  startMoveOrder() {
+    if (!this.controlledUnit) return;
+    console.log(`🏃 Click on map to move ${this.controlledUnit.type}`);
+    this.orderMode = { type: 'move', unit: this.controlledUnit };
+    this.setupOrderListener();
+  }
+
+  startAttackOrder() {
+    if (!this.controlledUnit) return;
+    console.log(`⚔️ Click on enemy unit to attack with ${this.controlledUnit.type}`);
+    this.orderMode = { type: 'attack', unit: this.controlledUnit };
+    this.setupOrderListener();
+  }
+
+  startChaseOrder() {
+    if (!this.controlledUnit) return;
+    console.log(`🎯 Click on enemy unit to chase and attack with ${this.controlledUnit.type}`);
+    this.orderMode = { type: 'chase', unit: this.controlledUnit };
+    this.setupOrderListener();
+  }
+
+  startHealOrder() {
+    if (!this.controlledUnit) return;
+    console.log(`💚 Click on friendly unit to heal with ${this.controlledUnit.type}`);
+    this.orderMode = { type: 'heal', unit: this.controlledUnit };
+    this.setupOrderListener();
+  }
+
+  stopUnitOrders() {
+    if (!this.controlledUnit) return;
+    this.controlledUnit.destination = null;
+    this.controlledUnit.mission = null;
+    this.controlledUnit.chaseTarget = null;
+    console.log(`🛑 Stopped all orders for ${this.controlledUnit.type}`);
+    this.buildInterface();
+  }
+
+  toggleAutoBattle() {
+    if (!this.controlledUnit) return;
+    
+    this.controlledUnit.autoBattle = !this.controlledUnit.autoBattle;
+    if (this.controlledUnit.autoBattle) {
+      console.log(`🤖 ${this.controlledUnit.type} auto-battle ENABLED`);
+      this.startUnitAutoBattle(this.controlledUnit);
+    } else {
+      console.log(`🤖 ${this.controlledUnit.type} auto-battle DISABLED`);
+    }
+    this.buildInterface();
+  }
+
+  modifyUnit(type, amount) {
+    if (!this.controlledUnit) return;
+    
+    switch(type) {
+      case 'hp':
+        this.controlledUnit.maxHp += amount;
+        this.controlledUnit.hp += amount;
+        break;
+      case 'attack':
+        this.controlledUnit.attack = (this.controlledUnit.attack || 0) + amount;
+        break;
+      case 'defense':
+        this.controlledUnit.defense = (this.controlledUnit.defense || 0) + amount;
+        break;
+      case 'range':
+        this.controlledUnit.range = (this.controlledUnit.range || 1) + amount;
+        break;
+      case 'heal':
+        this.controlledUnit.hp = this.controlledUnit.maxHp;
+        break;
+      case 'levelup':
+        this.controlledUnit.gainExperience(100); // Force level up
+        break;
+    }
+    
+    console.log(`⚡ Modified ${this.controlledUnit.type}: ${type} ${amount > 0 ? '+' : ''}${amount}`);
+    this.buildInterface();
+  }
+
+  // Enhanced order listener with chase functionality
+  setupOrderListener() {
+    const orderListener = (pointer) => {
+      if (!this.orderMode) return;
+
+      const [q, r] = pixelToHex(pointer.worldX, pointer.worldY);
+      const unit = this.orderMode.unit;
+
+      if (this.orderMode.type === 'move') {
+        unit.moveTo([q, r]);
+        console.log(`🏃 ${unit.type} ordered to move to [${q}, ${r}]`);
+        
+      } else if (this.orderMode.type === 'attack') {
+        const target = this.scene.gameWorld.getUnitAt(q, r);
+        if (target && target.owner !== unit.owner) {
+          const result = unit.attackUnit(target);
+          console.log(`⚔️ Attack result:`, result);
+        } else {
+          console.warn('❌ No valid enemy target at that location');
+        }
+        
+      } else if (this.orderMode.type === 'chase') {
+        const target = this.scene.gameWorld.getUnitAt(q, r);
+        if (target && target.owner !== unit.owner) {
+          unit.chaseTarget = target;
+          unit.mission = { type: 'chase', target: target };
+          this.startChaseSequence(unit, target);
+          console.log(`🎯 ${unit.type} now chasing ${target.type}`);
+        } else {
+          console.warn('❌ No valid enemy target to chase');
+        }
+        
+      } else if (this.orderMode.type === 'heal') {
+        const target = this.scene.gameWorld.getUnitAt(q, r);
+        if (target && target.owner === unit.owner && unit.healUnit) {
+          unit.healUnit(target);
+        } else {
+          console.warn('❌ No valid friendly target to heal');
+        }
+      }
+
+      // Remove listener after one use
+      this.scene.input.off('pointerdown', orderListener);
+      this.orderMode = null;
+      this.buildInterface();
+    };
+
+    this.scene.input.once('pointerdown', orderListener);
+  }
+
+  // Chase sequence - unit follows target and attacks when in range
+  startChaseSequence(chaser, target) {
+    const chaseUpdate = () => {
+      if (!chaser.isAlive() || !target.isAlive() || !chaser.chaseTarget) {
+        return; // Stop chasing
+      }
+
+      // Move towards target
+      const [chaserQ, chaserR] = chaser.coords;
+      const [targetQ, targetR] = target.coords;
+      
+      // Check if in attack range
+      if (chaser.canAttack(target)) {
+        // Attack!
+        const result = chaser.attackUnit(target);
+        console.log(`🎯 Chase attack: ${chaser.type} → ${target.type}`, result);
+        
+        // Continue chasing if target survives
+        if (target.isAlive()) {
+          setTimeout(chaseUpdate, 1000); // Attack every second
+        }
+      } else {
+        // Move closer
+        chaser.moveTo([targetQ, targetR]);
+        setTimeout(chaseUpdate, 500); // Check every half second
+      }
+    };
+
+    chaseUpdate();
+  }
+
+  // Auto-battle for individual units
+  startUnitAutoBattle(unit) {
+    if (!unit.autoBattle || !unit.isAlive()) return;
+
+    const battleUpdate = () => {
+      if (!unit.autoBattle || !unit.isAlive()) return;
+
+      // Find nearest enemy
+      const allUnits = this.scene.gameWorld.getAllUnits();
+      const enemies = allUnits.filter(other => 
+        other.owner !== unit.owner && 
+        other.isAlive() && 
+        unit.hexDistance(...unit.coords, ...other.coords) <= 5 // Within 5 hexes
+      );
+
+      if (enemies.length > 0) {
+        // Attack closest enemy if in range
+        const closest = enemies.reduce((prev, curr) => {
+          const prevDist = unit.hexDistance(...unit.coords, ...prev.coords);
+          const currDist = unit.hexDistance(...unit.coords, ...curr.coords);
+          return currDist < prevDist ? curr : prev;
+        });
+
+        if (unit.canAttack(closest)) {
+          unit.attackUnit(closest);
+        } else {
+          // Move towards closest enemy
+          unit.moveTo(closest.coords);
+        }
+      }
+
+      // Continue auto-battle
+      setTimeout(battleUpdate, 1500);
+    };
+
+    battleUpdate();
+  }
+
   buildInterface() {
     this.clearContent();
 
@@ -455,6 +1075,11 @@ startUnitAutoBattle(unit) {
     // Resource Management (only if god mode)
     if (this.godMode) {
       this.createResourceSection();
+    }
+    
+    // Save/Load System (only if god mode) - NEW SECTION
+    if (this.godMode) {
+      this.createSaveLoadSection();
     }
     
     // Time Controls
@@ -1076,6 +1701,52 @@ startUnitAutoBattle(unit) {
       const rect = this.container.getBoundingClientRect();
       console.log('- Position:', { x: rect.left, y: rect.top, w: rect.width, h: rect.height });
     }
+  }
+
+  showNotification(message, type = 'info') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+      position: fixed;
+      top: 140px;
+      right: 20px;
+      padding: 12px 16px;
+      border-radius: 6px;
+      color: white;
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 3000;
+      max-width: 300px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      opacity: 0;
+      transform: translateX(100%);
+      transition: all 0.3s ease;
+    `;
+
+    const colors = {
+      success: '#059669',
+      error: '#dc2626',
+      info: '#0ea5e9',
+      warning: '#d97706'
+    };
+    notification.style.background = colors[type] || colors.info;
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+      notification.style.opacity = '1';
+      notification.style.transform = 'translateX(0)';
+    }, 100);
+
+    setTimeout(() => {
+      notification.style.opacity = '0';
+      notification.style.transform = 'translateX(100%)';
+      setTimeout(() => {
+        if (notification.parentNode) {
+          notification.parentNode.removeChild(notification);
+        }
+      }, 300);
+    }, 3000);
   }
 }
 
