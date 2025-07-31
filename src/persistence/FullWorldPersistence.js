@@ -484,57 +484,227 @@ class FullWorldPersistence {
   }
 
   restoreGameState(scene, gameState) {
-    // Restore players and entities (reuse existing logic)
+    console.log('🎮 Restoring complete game state...');
+    
     gameState.players.forEach(playerData => {
+      console.log(`👤 Restoring player: ${playerData.name}`);
+      
+      // Create player
       const player = new Player(playerData.name, playerData.color, scene.gameWorld);
       player.resources = { ...playerData.resources };
       player.startCoords = playerData.startCoords;
       
-      // Restore buildings and units...
-      // (Same logic as the basic persistence system)
+      // ==========================================
+      // RESTORE BUILDINGS (FIXED!)
+      // ==========================================
+      if (playerData.buildings && playerData.buildings.length > 0) {
+        playerData.buildings.forEach(buildingData => {
+          const BuildingClass = window[buildingData.type];
+          if (BuildingClass) {
+            const building = new BuildingClass(
+              buildingData.coords,
+              player,
+              scene
+            );
+            
+            // Restore building state
+            building.completed = buildingData.completed;
+            building.ticksBuild = buildingData.ticksBuild;
+            building.buildTime = buildingData.buildTime;
+            building.hitpoints = buildingData.hitpoints;
+            if (buildingData.resourcetype) {
+              building.resourcetype = buildingData.resourcetype;
+            }
+            if (buildingData.resourceamount) {
+              building.resourceamount = buildingData.resourceamount;
+            }
+            
+            player.buildings.push(building);
+            
+            console.log(`🏗️ Restored ${buildingData.type} at [${buildingData.coords[0]}, ${buildingData.coords[1]}]`);
+          } else {
+            console.warn(`⚠️ Building class ${buildingData.type} not found`);
+          }
+        });
+      }
+      
+      // ==========================================
+      // RESTORE UNITS (FIXED!)
+      // ==========================================
+      if (playerData.units && playerData.units.length > 0) {
+        playerData.units.forEach(unitData => {
+          const UnitClass = window[unitData.type];
+          if (UnitClass) {
+            const unit = new UnitClass(
+              unitData.coords,
+              player,
+              scene
+            );
+            
+            // Restore unit state
+            unit.hp = unitData.hp;
+            unit.maxHp = unitData.maxHp;
+            unit.experience = unitData.experience || 0;
+            unit.level = unitData.level || 1;
+            unit.attack = unitData.attack || unit.attack; // Keep class default if not saved
+            unit.defense = unitData.defense || unit.defense;
+            unit.range = unitData.range || unit.range;
+            
+            // Restore movement/AI state
+            if (unitData.destination) {
+              unit.destination = {
+                q: unitData.destination.q,
+                r: unitData.destination.r
+              };
+            }
+            unit.mission = unitData.mission || null;
+            
+            player.units.push(unit);
+            
+            console.log(`👤 Restored ${unitData.type} at [${unitData.coords[0]}, ${unitData.coords[1]}]`);
+          } else {
+            console.warn(`⚠️ Unit class ${unitData.type} not found`);
+          }
+        });
+      }
       
       scene.gameWorld.addPlayer(player);
+      console.log(`✅ Player ${playerData.name}: ${player.buildings.length} buildings, ${player.units.length} units`);
     });
     
+    // Restore tick count
     scene.tickCount = gameState.tick;
+    
+    // Update UI
+    const ui = scene.scene.get('UIScene');
+    if (ui) {
+      ui.updateTick(scene.tickCount);
+    }
+    
+    console.log('✅ Complete game state restoration finished');
   }
 
+  // ==========================================
+  // ALSO FIX: Make sure serialization captures everything
+  // ==========================================
   serializePlayersComplete(players) {
-    // Complete player serialization (same as basic system)
-    return players.map(player => ({
-      name: player.name,
-      color: player.color,
-      resources: { ...player.resources },
-      startCoords: player.startCoords ? [...player.startCoords] : null,
-      buildings: player.buildings.map(b => ({
-        type: b.type,
-        category: b.category,
-        coords: [...b.coords],
-        completed: b.completed,
-        ticksBuild: b.ticksBuild,
-        buildTime: b.buildTime,
-        hitpoints: b.hitpoints,
-        resourcetype: b.resourcetype,
-        resourceamount: b.resourceamount
-      })),
-      units: player.units.map(u => ({
-        type: u.type,
-        coords: [...u.coords],
-        hp: u.hp,
-        maxHp: u.maxHp,
-        experience: u.experience || 0,
-        level: u.level || 1,
-        attack: u.attack || 0,
-        defense: u.defense || 0,
-        range: u.range || 1,
-        destination: u.destination ? { q: u.destination.q, r: u.destination.r } : null,
-        mission: u.mission || null
-      }))
-    }));
+    console.log('📦 Serializing complete player data...');
+    
+    return players.map(player => {
+      const playerData = {
+        name: player.name,
+        color: player.color,
+        resources: { ...player.resources },
+        startCoords: player.startCoords ? [...player.startCoords] : null,
+        buildings: [],
+        units: []
+      };
+      
+      // Serialize buildings with full data
+      if (player.buildings && player.buildings.length > 0) {
+        playerData.buildings = player.buildings.map(building => ({
+          type: building.type,
+          category: building.category,
+          coords: [...building.coords],
+          completed: building.completed,
+          ticksBuild: building.ticksBuild,
+          buildTime: building.buildTime,
+          hitpoints: building.hitpoints,
+          resourcetype: building.resourcetype || null,
+          resourceamount: building.resourceamount || 0
+        }));
+      }
+      
+      // Serialize units with full data
+      if (player.units && player.units.length > 0) {
+        playerData.units = player.units.map(unit => ({
+          type: unit.type,
+          coords: [...unit.coords],
+          hp: unit.hp,
+          maxHp: unit.maxHp,
+          experience: unit.experience || 0,
+          level: unit.level || 1,
+          attack: unit.attack || 0,
+          defense: unit.defense || 0,
+          range: unit.range || 1,
+          destination: unit.destination ? {
+            q: unit.destination.q,
+            r: unit.destination.r
+          } : null,
+          mission: unit.mission || null
+        }));
+      }
+      
+      console.log(`📦 Serialized ${player.name}: ${playerData.buildings.length} buildings, ${playerData.units.length} units`);
+      return playerData;
+    });
+  }
+
+  // ==========================================
+  // VERIFICATION METHOD - Add this for debugging
+  // ==========================================
+  async verifyFullWorldSave(saveId) {
+    try {
+      const saveFile = await this.loadFromIndexedDB(saveId);
+      if (!saveFile) {
+        return { valid: false, error: 'Save file not found' };
+      }
+      
+      const worldData = await this.decompressWorldData(saveFile.worldData);
+      const gameState = worldData.gameState;
+      
+      let totalBuildings = 0;
+      let totalUnits = 0;
+      
+      gameState.players.forEach(player => {
+        totalBuildings += (player.buildings || []).length;
+        totalUnits += (player.units || []).length;
+      });
+      
+      return {
+        valid: true,
+        saveFile: saveFile.name,
+        timestamp: new Date(saveFile.timestamp).toLocaleString(),
+        players: gameState.players.length,
+        totalBuildings,
+        totalUnits,
+        totalTiles: worldData.tiles.length,
+        tick: gameState.tick
+      };
+      
+    } catch (error) {
+      return { valid: false, error: error.message };
+    }
   }
 }
 
-// Global instance
+// ==========================================
+// NEW CONSOLE COMMAND FOR VERIFICATION
+// ==========================================
+window.verifyFullWorldSave = async function(saveId) {
+  if (!window.fullWorldPersistence) {
+    window.fullWorldPersistence = new FullWorldPersistence();
+  }
+  
+  const result = await window.fullWorldPersistence.verifyFullWorldSave(saveId);
+  
+  if (result.valid) {
+    console.log('✅ Full World Save Verification:');
+    console.log(`📁 Save: ${result.saveFile}`);
+    console.log(`📅 Date: ${result.timestamp}`);
+    console.log(`👥 Players: ${result.players}`);
+    console.log(`🏗️ Buildings: ${result.totalBuildings}`);
+    console.log(`👤 Units: ${result.totalUnits}`);
+    console.log(`🌍 Tiles: ${result.totalTiles}`);
+    console.log(`⏱️ Tick: ${result.tick}`);
+  } else {
+    console.error('❌ Save verification failed:', result.error);
+  }
+  
+  return result;
+};
+
+// Replace the existing FullWorldPersistence class
 window.FullWorldPersistence = FullWorldPersistence;
 
 // Browser console utilities
