@@ -696,12 +696,12 @@ window.verifyFullWorldSave = async function(saveId) {
     console.log(`🏗️ Buildings: ${result.totalBuildings}`);
     console.log(`👤 Units: ${result.totalUnits}`);
     console.log(`🌍 Tiles: ${result.totalTiles}`);
-    console.log(`⏱️ Tick: ${result.tick}`);    
+    console.log(`⏱️ Tick: ${result.tick}`);     
   } else {
     console.error('❌ Save verification failed:', result.error);
   }
   
-  return result;
+  return result; 
 };
 
 // Replace the existing FullWorldPersistence class
