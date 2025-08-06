@@ -46,7 +46,11 @@
   <script src="src/battle/BattleManager.js" onerror="console.warn('Battle manager not available')"></script>
   <script src="src/ui/BattleInterface.js" onerror="console.warn('Battle interface not available')"></script>
 
-  <!-- 10) UI Components - ORDER MATTERS -->
+  <!-- 10) AI System (optional - loads gracefully) -->
+  <script src="src/ai/AISystem.js" onerror="console.warn('AI system not available')"></script>
+  <script src="src/ai/AIManager.js" onerror="console.warn('AI manager not available')"></script>
+
+  <!-- 11) UI Components - ORDER MATTERS -->
   <script src="src/ui/BaseModal.js"></script>
   <script src="src/ui/components/ResourceCost.js"></script>
   <script src="src/ui/modals/BuildingPlacementUI.js"></script>
@@ -57,7 +61,7 @@
   <script src="src/persistence/GamePersistence.js"></script>
   <script src="src/persistence/FullWorldPersistence.js"></script>
 
-  <!-- 11) Scenes -->
+  <!-- 12) Scenes -->
   <script src="src/UIScene.js"></script>
   <script src="src/main.js"></script>
  
@@ -67,7 +71,7 @@
   </style>
 </head>
 <body>
-  <!-- 12) Bootstrap the game -->
+  <!-- 13) Bootstrap the game -->
   <script>
     window.onload = () => {
       new Phaser.Game({
