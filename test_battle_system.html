@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Battle System Test</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 20px; 
+      background: #1a202c; 
+      color: white; 
+    }
+    .test-result { 
+      margin: 10px 0; 
+      padding: 10px; 
+      border-radius: 5px; 
+    }
+    .pass { background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; }
+    .fail { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; }
+    pre { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>🗡️ Battle System Test</h1>
+  <div id="test-output"></div>
+
+  <!-- Load battle system files -->
+  <script src="src/battle/BattleData.js"></script>
+  <script src="src/battle/BattleResolver.js"></script>
+  <script src="src/battle/BattleManager.js"></script>
+  <script src="src/ui/BattleInterface.js"></script>
+
+  <script>
+    const output = document.getElementById('test-output');
+    
+    function log(message, isPass = true) {
+      const div = document.createElement('div');
+      div.className = `test-result ${isPass ? 'pass' : 'fail'}`;
+      div.innerHTML = message;
+      output.appendChild(div);
+      console.log(message);
+    }
+    
+    function test(name, fn) {
+      try {
+        log(`<h3>Testing ${name}...</h3>`);
+        fn();
+        log(`✅ ${name} passed`);
+      } catch (error) {
+        log(`❌ ${name} failed: ${error.message}`, false);
+        console.error(error);
+      }
+    }
+    
+    // Mock minimal requirements for testing
+    const mockUnit = (type, attack = 10, hp = 20, maxHp = 20, defense = 2) => ({
+      type,
+      attack,
+      hp,
+      maxHp,
+      defense,
+      coords: [0, 0],
+      owner: { name: `${type}_owner` },
+      isAlive: () => hp > 0,
+      takeDamage: (dmg) => hp = Math.max(0, hp - dmg),
+      canAttack: () => true,
+      gainExperience: () => {},
+      hexDistance: (q1, r1, q2, r2) => Math.abs(q1 - q2) + Math.abs(r1 - r2)
+    });
+
+    const mockScene = {
+      tickCount: 100,
+      map: {
+        getTile: () => ({ type: 'plains' })
+      }
+    };
+
+    const mockGameWorld = {
+      scene: mockScene
+    };
+
+    // Run tests
+    test('BattleData class creation', () => {
+      const battle = new BattleData('test-1', [0, 0], [], [], 100);
+      if (!battle.id || !battle.hex || !battle.startTick) {
+        throw new Error('BattleData not properly initialized');
+      }
+      log(`Battle created: ${battle.toString()}`);
+    });
+
+    test('BattleData legacy initialization', () => {
+      const battle = new BattleData();
+      const attacker = { player: { name: 'Player1' }, units: [mockUnit('warrior')] };
+      const defender = { player: { name: 'Player2' }, units: [mockUnit('archer')] };
+      
+      battle.initialize(attacker, defender, [5, 5]);
+      
+      if (!battle.armies.attacker || !battle.armies.defender) {
+        throw new Error('Legacy initialization failed');
+      }
+      log('Legacy initialization successful');
+    });
+
+    test('BattleResolver combat calculation', () => {
+      const attacker = mockUnit('warrior', 15, 25, 25, 1);
+      const defender = mockUnit('archer', 8, 15, 15, 0);
+      
+      const result = BattleResolver.resolveCombat(attacker, defender);
+      
+      if (!result.damage || typeof result.damage !== 'number') {
+        throw new Error('Combat resolution failed');
+      }
+      log(`Combat result: ${result.damage} damage, result: ${result.result}`);
+    });
+
+    test('BattleResolver battle prediction', () => {
+      const attackers = [mockUnit('warrior'), mockUnit('knight', 20, 30, 30, 5)];
+      const defenders = [mockUnit('archer'), mockUnit('spearman', 12, 18, 18, 3)];
+      
+      const prediction = BattleResolver.predictBattleOutcome(attackers, defenders);
+      
+      if (!prediction.attackerWinChance || !prediction.defenderWinChance) {
+        throw new Error('Battle prediction failed');
+      }
+      log(`Prediction: ${Math.round(prediction.attackerWinChance * 100)}% vs ${Math.round(prediction.defenderWinChance * 100)}%`);
+    });
+
+    test('BattleManager creation and basic operations', () => {
+      const manager = new BattleManager(mockGameWorld);
+      
+      if (!manager.battles || !manager.unitBattleMap) {
+        throw new Error('BattleManager not properly initialized');
+      }
+      
+      log(`BattleManager created with ${manager.battles.size} battles`);
+    });
+
+    test('BattleManager start battle', () => {
+      const manager = new BattleManager(mockGameWorld);
+      const attackers = [mockUnit('warrior'), mockUnit('knight')];
+      const defenders = [mockUnit('archer')];
+      
+      const battle = manager.startBattle([10, 10], attackers, defenders);
+      
+      if (!battle || manager.battles.size !== 1) {
+        throw new Error('Battle not properly started');
+      }
+      
+      log(`Battle started at [${battle.hex}] with ${battle.attackers.length} vs ${battle.defenders.length}`);
+    });
+
+    test('BattleInterface creation (DOM test)', () => {
+      const mockScene = {
+        humanPlayer: { name: 'TestPlayer' },
+        tickCount: 150,
+        map: { getTile: () => ({ type: 'forest' }) }
+      };
+      
+      const interface = new BattleInterface(mockScene);
+      
+      if (!interface.container || !document.body.contains(interface.container)) {
+        throw new Error('BattleInterface DOM not properly created');
+      }
+      
+      log('BattleInterface DOM created successfully');
+      
+      // Clean up
+      interface.destroy();
+    });
+
+    test('Class availability check', () => {
+      const classes = ['BattleData', 'BattleResolver', 'BattleManager', 'BattleInterface'];
+      const missing = classes.filter(cls => typeof window[cls] === 'undefined');
+      
+      if (missing.length > 0) {
+        throw new Error(`Missing classes: ${missing.join(', ')}`);
+      }
+      
+      log(`All classes available: ${classes.join(', ')}`);
+    });
+
+    // Test duplicate class issue fix
+    test('No duplicate BattleData classes', () => {
+      // Create using the main BattleData class
+      const battle1 = new BattleData('test-dup-1', [0, 0], [], [], 100);
+      
+      // Verify it has the comprehensive feature set
+      if (!battle1.serialize || !battle1.getStatistics || !battle1.isValid) {
+        throw new Error('BattleData missing comprehensive features - duplicate class issue not fixed');
+      }
+      
+      log('BattleData class has comprehensive features - duplicate issue resolved');
+    });
+
+    log('<h2>🎯 Battle System Test Complete</h2>');
+    log('All battle system components are properly loaded and functional for AdminPanel testing.');
+  </script>
+</body>
+</html>

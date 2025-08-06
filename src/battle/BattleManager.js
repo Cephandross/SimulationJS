@@ -1,35 +1,63 @@
-// src/battle/BattleManager.js
-// Core battle logic and state management
-
+/**
+ * BattleManager - Core battle system management and coordination
+ * 
+ * Manages all active battles in the game world, coordinates unit participation,
+ * processes combat rounds, and interfaces with the UI system.
+ * 
+ * Key Responsibilities:
+ * - Track all active battles by hex location
+ * - Manage unit participation in battles (adding/removing units)
+ * - Process combat rounds using BattleResolver
+ * - Coordinate with BattleInterface for UI updates
+ * - Handle battle lifecycle (start, tick, end)
+ * 
+ * @class BattleManager
+ */
 class BattleManager {
+  /**
+   * Create a new BattleManager instance
+   * @param {Object} gameWorld - Reference to the main game world
+   */
   constructor(gameWorld) {
     this.gameWorld = gameWorld;
     this.scene = gameWorld.scene;
-    this.battles = new Map(); // key: "q,r", value: Battle object
-    this.unitBattleMap = new Map(); // key: unit, value: battle
+    
+    // Map of active battles: key = "q,r" coordinate string, value = BattleData instance
+    this.battles = new Map();
+    
+    // Map tracking which battle each unit is in: key = unit object, value = BattleData instance
+    this.unitBattleMap = new Map();
   }
 
   /**
-   * Start a new battle or join existing one at hex location
+   * Start a new battle or add units to existing battle at hex location
+   * 
+   * This method handles both new battle creation and reinforcement of existing battles.
+   * If a battle already exists at the specified hex, new units are added to appropriate sides.
+   * 
+   * @param {Array} hex - Hex coordinates [q, r] where battle takes place
+   * @param {Array} attackers - Array of attacking unit objects
+   * @param {Array} defenders - Array of defending unit objects
+   * @returns {BattleData} The battle instance (new or existing)
    */
   startBattle(hex, attackers, defenders) {
     const [q, r] = hex;
     const battleKey = `${q},${r}`;
     
-    // Check if battle already exists
+    // Check if battle already exists at this location
     let battle = this.battles.get(battleKey);
     
     if (battle) {
-      // Add units to existing battle
+      // Battle exists - add new units as reinforcements
       attackers.forEach(unit => this.addUnitToBattle(unit, battle));
       return battle;
     }
 
-    // Create new battle
+    // Create new battle using BattleData class from BattleData.js
     battle = new BattleData(battleKey, hex, attackers, defenders, this.scene.tickCount);
     this.battles.set(battleKey, battle);
     
-    // Track which units are in this battle
+    // Track which units are participating in this battle
     [...attackers, ...defenders].forEach(unit => {
       this.unitBattleMap.set(unit, battle);
     });
@@ -43,10 +71,17 @@ class BattleManager {
   }
 
   /**
-   * Add a unit to an existing battle
+   * Add a unit to an existing battle, determining which side they join
+   * 
+   * Units are assigned to sides based on their owner's relationship with existing participants.
+   * If the unit's owner already has units on a side, they join that side.
+   * Otherwise, they default to the attacking side.
+   * 
+   * @param {Object} unit - The unit to add to the battle
+   * @param {BattleData} battle - The battle to join
    */
   addUnitToBattle(unit, battle) {
-    // Determine which side the unit joins
+    // Determine which side the unit should join based on their owner
     const isAttacker = battle.attackers.some(u => u.owner === unit.owner);
     const isDefender = battle.defenders.some(u => u.owner === unit.owner);
     
@@ -55,16 +90,20 @@ class BattleManager {
     } else if (isDefender) {
       battle.defenders.push(unit);
     } else {
-      // New faction - add to attackers by default
+      // New faction - add to attackers by default (could be made configurable)
       battle.attackers.push(unit);
     }
     
+    // Track this unit's participation
     this.unitBattleMap.set(unit, battle);
     console.log(`⚔️ ${unit.type} joined battle at [${battle.hex}]`);
   }
 
   /**
-   * Get battle at specific hex coordinates
+   * Get the active battle at specific hex coordinates
+   * 
+   * @param {Array} hex - Hex coordinates [q, r]
+   * @returns {BattleData|undefined} Battle at the location, or undefined if none
    */
   getBattleAt(hex) {
     const [q, r] = hex;
@@ -72,91 +111,123 @@ class BattleManager {
   }
 
   /**
-   * Get battle that a unit is participating in
+   * Get the battle that a specific unit is participating in
+   * 
+   * @param {Object} unit - The unit to check
+   * @returns {BattleData|null} The battle the unit is in, or null if not in battle
    */
   getUnitBattle(unit) {
     return this.unitBattleMap.get(unit) || null;
   }
 
   /**
-   * Remove a unit from battle (retreat)
+   * Remove a unit from battle (typically for retreating)
+   * 
+   * This method safely removes a unit from both battle sides and the tracking map.
+   * After removal, it checks if the battle should end due to one side having no units.
+   * 
+   * @param {Object} unit - The unit to remove from battle
+   * @param {BattleData} battle - The battle to remove the unit from
    */
   retreatUnit(unit, battle) {
-    // Remove from battle sides
+    // Remove unit from both attacking and defending sides (defensive programming)
     battle.attackers = battle.attackers.filter(u => u !== unit);
     battle.defenders = battle.defenders.filter(u => u !== unit);
     
-    // Remove from tracking
+    // Remove from battle tracking
     this.unitBattleMap.delete(unit);
     
     console.log(`🏃 ${unit.type} retreated from battle at [${battle.hex}]`);
     
-    // Check if battle should end
+    // Check if battle should end due to lack of participants
     this.checkBattleEnd(battle);
   }
 
   /**
-   * Process all active battles each tick
+   * Process all active battles each game tick
+   * 
+   * This is the main update loop for the battle system. It processes combat rounds
+   * for all active battles and cleans up finished battles.
+   * 
+   * Called once per game tick from the main game loop.
    */
   tick() {
     const battlesToRemove = [];
     
+    // Process each active battle
     for (const [key, battle] of this.battles) {
-      // Process battle round
+      // Process battle round (every tick for now, could be configured)
       if (this.scene.tickCount - battle.lastCombatTick >= 1) {
         this.processBattleRound(battle);
         battle.lastCombatTick = this.scene.tickCount;
       }
       
-      // Check if battle should end
+      // Check if battle has ended and mark for cleanup
       if (this.shouldBattleEnd(battle)) {
         this.endBattle(battle);
         battlesToRemove.push(key);
       }
     }
     
-    // Clean up ended battles
+    // Clean up ended battles to prevent memory leaks
     battlesToRemove.forEach(key => this.battles.delete(key));
   }
 
   /**
    * Process one round of combat for a battle
+   * 
+   * Each round, all units from both sides attack simultaneously using the
+   * BattleResolver to calculate damage and apply results.
+   * 
+   * @param {BattleData} battle - The battle to process
    */
   processBattleRound(battle) {
     const resolver = new BattleResolver();
     
-    // Each side attacks simultaneously
+    // Both sides attack simultaneously (not turn-based)
     const attackerResults = this.processAttacks(battle.attackers, battle.defenders, battle);
     const defenderResults = this.processAttacks(battle.defenders, battle.attackers, battle);
     
-    // Update battle interface
+    // Update battle interface with combined results
     this.updateBattleInterface(battle, [...attackerResults, ...defenderResults]);
   }
 
   /**
-   * Process attacks from one side to another
+   * Process attacks from one side against another
+   * 
+   * Each unit on the attacking side selects a target and attempts to attack.
+   * Results are collected and returned for UI display.
+   * 
+   * @param {Array} attackers - Units performing attacks
+   * @param {Array} defenders - Units being attacked
+   * @param {BattleData} battle - The battle context
+   * @returns {Array} Array of attack result objects
    */
   processAttacks(attackers, defenders, battle) {
     const results = [];
     
     attackers.forEach(attacker => {
+      // Skip dead units
       if (!attacker.isAlive()) return;
       
-      // Find target using range priority (lowest range first)
+      // Find target using priority system (closest, weakest, etc.)
       const target = this.selectTarget(attacker, defenders);
-      if (!target) return;
+      if (!target) return; // No valid targets
       
-      // Calculate damage
+      // Get terrain for combat modifiers
       const terrain = this.scene.map.getTile(...battle.hex);
+      
+      // Resolve combat using BattleResolver
       const result = BattleResolver.resolveCombat(attacker, target, terrain);
       
+      // Store result for UI display
       results.push({
         attacker: attacker,
         target: target,
         result: result
       });
       
-      // Award experience
+      // Award experience for participation
       attacker.gainExperience(1);
       
       console.log(`⚔️ ${attacker.type} attacks ${target.type} for ${result.damage} damage`);
@@ -166,24 +237,41 @@ class BattleManager {
   }
 
   /**
-   * Select target using range priority system
+   * Select the best target for an attacker using priority system
+   * 
+   * Current priority:
+   * 1. Units the attacker can actually attack (range, alive, etc.)
+   * 2. Prefer units with lower range (eliminate threats first)
+   * 3. Prefer units with lower HP (easier kills)
+   * 
+   * @param {Object} attacker - The attacking unit
+   * @param {Array} enemies - Potential target units
+   * @returns {Object|null} The selected target, or null if none available
    */
   selectTarget(attacker, enemies) {
+    // Filter to only valid targets (alive, in range, etc.)
     const validTargets = enemies.filter(enemy => 
       enemy.isAlive() && attacker.canAttack(enemy)
     );
     
     if (validTargets.length === 0) return null;
     
-    // Sort by range (lowest first), then by HP (lowest first for easier kills)
+    // Sort by priority: range (lowest first), then HP (lowest first)
     return validTargets.sort((a, b) => {
+      // Primary sort: prefer lower range (eliminate ranged threats first)
       if (a.range !== b.range) return a.range - b.range;
+      // Secondary sort: prefer lower HP (easier kills)
       return a.hp - b.hp;
     })[0];
   }
 
   /**
-   * Check if battle should end
+   * Check if a battle should end
+   * 
+   * A battle ends when one side has no living units remaining.
+   * 
+   * @param {BattleData} battle - The battle to check
+   * @returns {boolean} True if battle should end
    */
   shouldBattleEnd(battle) {
     const aliveAttackers = battle.attackers.filter(u => u.isAlive()).length;
@@ -193,22 +281,29 @@ class BattleManager {
   }
 
   /**
-   * End a battle and clean up
+   * End a battle and perform cleanup
+   * 
+   * Determines the victor, logs the result, removes unit tracking,
+   * and hides the battle interface.
+   * 
+   * @param {BattleData} battle - The battle to end
    */
   endBattle(battle) {
     const aliveAttackers = battle.attackers.filter(u => u.isAlive()).length;
     const aliveDefenders = battle.defenders.filter(u => u.isAlive()).length;
     
+    // Determine victor
     let victor = null;
     if (aliveAttackers > 0 && aliveDefenders === 0) {
       victor = 'attackers';
     } else if (aliveDefenders > 0 && aliveAttackers === 0) {
       victor = 'defenders';
     }
+    // If both sides have units, it's a draw (shouldn't happen with current logic)
     
     console.log(`🏆 Battle at [${battle.hex}] ended. Victor: ${victor || 'draw'}`);
     
-    // Remove all units from battle tracking
+    // Remove all units from battle tracking to free memory
     [...battle.attackers, ...battle.defenders].forEach(unit => {
       this.unitBattleMap.delete(unit);
     });
@@ -218,7 +313,9 @@ class BattleManager {
   }
 
   /**
-   * Check if battle should end after unit retreat
+   * Check if battle should end after unit retreat and clean up if so
+   * 
+   * @param {BattleData} battle - The battle to check
    */
   checkBattleEnd(battle) {
     if (this.shouldBattleEnd(battle)) {
@@ -228,7 +325,12 @@ class BattleManager {
   }
 
   /**
-   * Show battle interface for players with units in battle
+   * Show battle interface for players with units in the battle
+   * 
+   * The UI system determines which players should see the interface
+   * based on their unit participation.
+   * 
+   * @param {BattleData} battle - The battle to display
    */
   showBattleInterface(battle) {
     if (this.scene.uiManager && this.scene.uiManager.battleInterface) {
@@ -237,7 +339,10 @@ class BattleManager {
   }
 
   /**
-   * Update battle interface with latest results
+   * Update battle interface with latest combat results
+   * 
+   * @param {BattleData} battle - The battle being displayed
+   * @param {Array} results - Combat results from this round
    */
   updateBattleInterface(battle, results) {
     if (this.scene.uiManager && this.scene.uiManager.battleInterface) {
@@ -246,7 +351,9 @@ class BattleManager {
   }
 
   /**
-   * Hide battle interface
+   * Hide the battle interface
+   * 
+   * @param {BattleData} battle - The battle whose interface to hide
    */
   hideBattleInterface(battle) {
     if (this.scene.uiManager && this.scene.uiManager.battleInterface) {
@@ -255,45 +362,31 @@ class BattleManager {
   }
 
   /**
-   * Get all active battles
+   * Get all currently active battles
+   * 
+   * @returns {Array} Array of BattleData objects
    */
   getActiveBattles() {
     return Array.from(this.battles.values());
   }
 
   /**
-   * Debug: Print current battle state
+   * Debug method: Print current battle manager state to console
+   * 
+   * Useful for AdminPanel debugging and development.
    */
   debugState() {
     console.log(`=== BATTLE MANAGER (${this.battles.size} active battles) ===`);
     for (const [key, battle] of this.battles) {
       const aliveAttackers = battle.attackers.filter(u => u.isAlive()).length;
       const aliveDefenders = battle.defenders.filter(u => u.isAlive()).length;
-      console.log(`  Battle ${key}: ${aliveAttackers} vs ${aliveDefenders} (Tick ${battle.startTick})`);
+      console.log(`  Battle ${key}: ${aliveAttackers} vs ${aliveDefenders} (Started: tick ${battle.startTick})`);
     }
+    console.log(`Total units in battles: ${this.unitBattleMap.size}`);
   }
 }
 
-// Battle data structure
-class BattleData {
-  constructor(id, hex, attackers, defenders, startTick) {
-    this.id = id;
-    this.hex = hex; // [q, r]
-    this.attackers = [...attackers];
-    this.defenders = [...defenders];
-    this.startTick = startTick;
-    this.lastCombatTick = startTick;
-    this.spectators = new Set();
-  }
-
-  getAllUnits() {
-    return [...this.attackers, ...this.defenders];
-  }
-
-  getAliveUnits() {
-    return this.getAllUnits().filter(unit => unit.isAlive());
-  }
-}
+// Note: BattleData class is defined in /src/battle/BattleData.js
+// This file only exports BattleManager to avoid duplicate class definitions
 
 window.BattleManager = BattleManager;
-window.BattleData = BattleData;
