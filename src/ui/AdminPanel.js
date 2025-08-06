@@ -3,10 +3,10 @@
 class AdminPanel extends BaseModal {
   constructor(scene) {
     super(scene, {
-      width: 400,
-      height: 900, // Increased height for battle section
-      x: window.innerWidth - 420,
-      y: 20,
+      width: 380,
+      height: 850, // Reduced height to avoid overlap
+      x: window.innerWidth - 400,
+      y: 60, // Moved down to avoid top player bar
       title: '⚡ Admin Panel',
       closable: true
     });
@@ -23,10 +23,10 @@ class AdminPanel extends BaseModal {
     // Override container styling for better visibility
     this.container.style.cssText = `
       position: fixed;
-      left: ${window.innerWidth - 420}px;
-      top: 20px;
-      width: 400px;
-      height: 900px;
+      left: ${window.innerWidth - 400}px;
+      top: 60px;
+      width: 380px;
+      height: 850px;
       background: rgba(17, 24, 39, 0.98);
       border: 2px solid rgb(75, 85, 99);
       border-radius: 8px;
@@ -38,6 +38,8 @@ class AdminPanel extends BaseModal {
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(10px);
       display: none;
+      overflow-y: auto;
+      max-height: calc(100vh - 80px);
     `;
     
     // NEW: Check if battle system is available
@@ -57,6 +59,23 @@ class AdminPanel extends BaseModal {
       this.scene.gameWorld.battleManager &&
       typeof BattleManager !== 'undefined'
     );
+    
+    // Additional checks for battle system components
+    if (!this.battleSystemEnabled) {
+      // Try alternative availability checks
+      this.battleSystemEnabled = !!(
+        typeof BattleData !== 'undefined' ||
+        typeof BattleResolver !== 'undefined' ||
+        this.scene.battleSystemEnabled
+      );
+    }
+    
+    console.log('🗡️ Battle system availability check:', {
+      gameWorld: !!this.scene.gameWorld,
+      battleManager: !!this.scene.gameWorld?.battleManager,
+      BattleManager: typeof BattleManager !== 'undefined',
+      enabled: this.battleSystemEnabled
+    });
   }
 
   show() {
@@ -1691,21 +1710,55 @@ class AdminPanel extends BaseModal {
     `;
 
     const players = this.scene.gameWorld.players || [];
-    players.forEach((player, index) => {
-      const option = document.createElement('option');
-      option.value = index;
-      option.textContent = `${player.name} (${player.buildings.length} buildings, ${player.units.length} units)`;
-      option.style.background = 'rgb(31, 41, 55)';
-      playerSelect.appendChild(option);
-    });
+    
+    // Clear existing options first
+    playerSelect.innerHTML = '';
+    
+    // Add default option if no players
+    if (players.length === 0) {
+      const defaultOption = document.createElement('option');
+      defaultOption.value = '';
+      defaultOption.textContent = 'No players available';
+      defaultOption.style.background = 'rgb(31, 41, 55)';
+      defaultOption.style.color = '#ef4444';
+      playerSelect.appendChild(defaultOption);
+    } else {
+      players.forEach((player, index) => {
+        const option = document.createElement('option');
+        option.value = index;
+        option.textContent = `${player.name} (${player.buildings.length} buildings, ${player.units.length} units)`;
+        option.style.background = 'rgb(31, 41, 55)';
+        option.style.color = `#${player.color.toString(16).padStart(6, '0')}`;
+        playerSelect.appendChild(option);
+      });
+    }
 
+    // Improved change handler with error handling
     playerSelect.onchange = (e) => {
-      this.selectedPlayer = players[e.target.value];
-      this.buildInterface();
+      try {
+        const selectedIndex = parseInt(e.target.value);
+        if (!isNaN(selectedIndex) && selectedIndex >= 0 && selectedIndex < players.length) {
+          this.selectedPlayer = players[selectedIndex];
+          console.log(`👥 Selected player: ${this.selectedPlayer.name}`);
+          this.buildInterface();
+        } else {
+          console.warn('⚠️ Invalid player selection');
+        }
+      } catch (error) {
+        console.error('❌ Error in player selection:', error);
+      }
     };
 
+    // Set default selection more robustly
     if (!this.selectedPlayer && players.length > 0) {
       this.selectedPlayer = players[0];
+      playerSelect.value = '0';
+    } else if (this.selectedPlayer) {
+      // Try to maintain current selection
+      const currentIndex = players.indexOf(this.selectedPlayer);
+      if (currentIndex >= 0) {
+        playerSelect.value = currentIndex.toString();
+      }
     }
 
     section.appendChild(playerSelect);
@@ -2141,6 +2194,10 @@ class AdminPanel extends BaseModal {
     // Update the game's tick interval if possible
     if (this.scene.setTimeSpeed) {
       this.scene.setTimeSpeed(multiplier);
+    } else {
+      // Fallback: Store the multiplier for manual application in update loop
+      this.scene.timeMultiplier = multiplier;
+      console.log(`⏰ Time speed stored as scene property: ${multiplier}x`);
     }
     
     console.log(`⏰ Time speed set to ${multiplier}x`);

@@ -79,12 +79,12 @@ class UIManager {
       this.toggleBuildMenu();
     });
 
-    // Admin panel hotkeys (F12 or ~ key)
+    // Admin panel hotkeys (F12 or L key)
     this.scene.input.keyboard.on('keydown-F12', () => {
       this.toggleAdminPanel();
     });
 
-    this.scene.input.keyboard.on('keydown-BACKTICK', () => {
+    this.scene.input.keyboard.on('keydown-L', () => {
       this.toggleAdminPanel();
     });
 
