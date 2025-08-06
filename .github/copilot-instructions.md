@@ -8,7 +8,7 @@ SimulationJS is a browser-based hex grid strategy simulation game built with Pha
 
 ### Bootstrap and Dependencies
 - **Node.js Setup**: `node --version` (requires v14+, tested with v20.19.4)
-- **Install dependencies**: `npm install --include=optional` -- takes 10-30 seconds. NEVER CANCEL.
+- **Install dependencies**: `npm install --include=optional` NEVER CANCEL.
 - **Sharp dependency fix**: If hexify fails with sharp errors, run: `npm install sharp --include=optional`
 
 ### Asset Processing
