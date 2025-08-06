@@ -1,7 +1,7 @@
-// src/units/Unit.js - Modular Base Class with Combat System
+// src/units/Unit.js - Complete Unit with Battle System Integration
 
 /**
- * Self-contained Unit base class with modular combat system
+ * Self-contained Unit base class with modular combat system and battle integration
  */
 class Unit {
   constructor({ type, owner, coords, scene, hp = 10, movePts = 1, actionPts = 1 }) {
@@ -21,11 +21,16 @@ class Unit {
     this.defense = 0;
     this.range = 1;
     this.experience = 0;
+    this.level = 1;
     
     // Movement/AI state
     this.destination = null;
     this.onArrive = null;
     this.mission = null;
+    
+    // NEW: Battle system state
+    this.statusEffects = {};  // For poison, burning, etc.
+    this.autoBattle = false;  // For AI auto-combat
 
     // Set sprite info and create sprite
     this.setSpriteInfo();
@@ -78,7 +83,13 @@ class Unit {
       'Healer': { key: 'rogues_sheet', frame: 15 },        // Cleric
       'LightRider': { key: 'Cavalry', frame: 0 },          // Cavalry
       'HeavyCavalry': { key: 'Cavalry', frame: 0 },        // Cavalry
-      'Engineer': { key: 'rogues_sheet', frame: 39 }       // Builder
+      'Engineer': { key: 'rogues_sheet', frame: 39 },      // Builder
+      
+      // Common unit names used in testing
+      'Warrior': { key: 'rogues_sheet', frame: 1 },        // Light Infantry
+      'Archer': { key: 'rogues_sheet', frame: 2 },         // Light Archer
+      'Scout': { key: 'rogues_sheet', frame: 3 },          // Assassin
+      'Knight': { key: 'rogues_sheet', frame: 7 }          // Armored Infantry
     };
 
     const spriteInfo = unitSpriteMap[this.type];
@@ -119,7 +130,16 @@ class Unit {
    */
   setPosition(q, r) {
     this.coords = [q, r];
-    const [x, y] = hexToPixel(q, r);
+    this.updateSpritePosition();
+  }
+
+  /**
+   * Update sprite position to match coordinates
+   */
+  updateSpritePosition() {
+    if (!this.sprite) return;
+    
+    const [x, y] = hexToPixel(this.coords[0], this.coords[1]);
     this.sprite.setPosition(x, y);
     
     // Move team indicator with unit
@@ -140,23 +160,59 @@ class Unit {
     return !otherUnit || otherUnit === this;
   }
 
+  // =============================================================================
+  // MOVEMENT SYSTEM (Updated with Battle Integration)
+  // =============================================================================
+
   /**
    * Tell this unit to walk to a target tile
    */
   moveTo(targetCoords, onArrive = null) {
+    // Check if unit is in battle
+    if (this.isInBattle()) {
+      console.warn(`⚔️ ${this.type} cannot move while in battle! Use retreat first.`);
+      return false;
+    }
+    
     console.log(`${this.type} moving from [${this.coords[0]}, ${this.coords[1]}] to [${targetCoords[0]}, ${targetCoords[1]}]`);
     this.destination = { q: targetCoords[0], r: targetCoords[1] };
     this.onArrive = onArrive;
+    return true;
   }
 
   /**
-   * Update movement (called each tick)
+   * Set destination with battle state checking
    */
-  update() {
-    if (!this.destination) return;
+  setDestination(q, r) {
+    // Check if unit is in battle
+    if (this.isInBattle()) {
+      console.warn(`⚔️ ${this.type} cannot move while in battle! Use retreat first.`);
+      return false;
+    }
+    
+    // Original movement logic
+    this.destination = [q, r];
+    this.calculatePath();
+    return true;
+  }
+
+  /**
+   * Calculate path to destination (placeholder for pathfinding)
+   */
+  calculatePath() {
+    // Simple direct movement for now
+    // Could be enhanced with proper pathfinding later
+  }
+
+  /**
+   * Update movement (called each tick) - renamed from update() to avoid conflicts
+   */
+  processMovement() {
+    if (!this.destination || this.isInBattle()) return;
 
     const [currentQ, currentR] = this.coords;
-    const { q: targetQ, r: targetR } = this.destination;
+    const targetQ = Array.isArray(this.destination) ? this.destination[0] : this.destination.q;
+    const targetR = Array.isArray(this.destination) ? this.destination[1] : this.destination.r;
     
     // Check if arrived
     if (currentQ === targetQ && currentR === targetR) {
@@ -198,27 +254,11 @@ class Unit {
   }
 
   // =============================================================================
-  // MODULAR COMBAT SYSTEM
+  // BATTLE SYSTEM INTEGRATION
   // =============================================================================
 
   /**
-   * Check if this unit can attack the target
-   */
-  canAttack(target) {
-    if (!target || !target.isAlive()) return false;
-    if (target.owner === this.owner) return false; // No friendly fire
-    if (this.attack <= 0) return false; // Non-combat unit
-    
-    // Check range
-    const [myQ, myR] = this.coords;
-    const [targetQ, targetR] = target.coords;
-    const distance = this.hexDistance(myQ, myR, targetQ, targetR);
-    
-    return distance <= this.range;
-  }
-
-  /**
-   * Attack another unit
+   * Attack another unit - NOW TRIGGERS BATTLE SYSTEM
    */
   attackUnit(target) {
     if (!this.canAttack(target)) {
@@ -226,16 +266,104 @@ class Unit {
       return false;
     }
 
+    // Check if battle manager exists
+    if (!this.scene.gameWorld || !this.scene.gameWorld.battleManager) {
+      console.warn('❌ Battle manager not initialized - falling back to instant combat');
+      return this.instantCombat(target); // Fallback to old system
+    }
+
+    // Check if battle already exists at target location
+    const battleHex = target.coords;
+    const existingBattle = this.scene.gameWorld.battleManager.getBattleAt(battleHex);
+    
+    if (existingBattle) {
+      // Join existing battle
+      this.scene.gameWorld.battleManager.addUnitToBattle(this, existingBattle);
+      console.log(`⚔️ ${this.type} joined existing battle at [${battleHex}]`);
+    } else {
+      // Start new battle
+      this.scene.gameWorld.battleManager.startBattle(battleHex, [this], [target]);
+      console.log(`⚔️ ${this.type} started battle with ${target.type} at [${battleHex}]`);
+    }
+    
+    return true;
+  }
+
+  /**
+   * Check if unit is currently in a battle
+   */
+  isInBattle() {
+    if (!this.scene.gameWorld || !this.scene.gameWorld.battleManager) return false;
+    return this.scene.gameWorld.battleManager.getUnitBattle(this) !== null;
+  }
+
+  /**
+   * Get the battle this unit is participating in
+   */
+  getBattle() {
+    if (!this.scene.gameWorld || !this.scene.gameWorld.battleManager) return null;
+    return this.scene.gameWorld.battleManager.getUnitBattle(this);
+  }
+
+  /**
+   * Get the hex where this unit's battle is taking place
+   */
+  getBattleHex() {
+    const battle = this.getBattle();
+    return battle ? battle.hex : null;
+  }
+
+  /**
+   * Retreat from current battle
+   */
+  retreatFromBattle() {
+    const battle = this.getBattle();
+    if (battle) {
+      this.scene.gameWorld.battleManager.retreatUnit(this, battle);
+      console.log(`🏃 ${this.type} retreated from battle at [${battle.hex}]`);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Fallback instant combat for when battle system is not available
+   */
+  instantCombat(target) {
     // Get terrain for modifiers
     const terrain = this.scene.map.getTile(target.coords[0], target.coords[1]);
     
-    // Calculate damage with terrain modifiers
+    // Use the existing CombatResolver
     const result = CombatResolver.resolveCombat(this, target, terrain);
     
     // Award experience
     this.gainExperience(1);
     
     return result;
+  }
+
+  // =============================================================================
+  // ENHANCED COMBAT SYSTEM
+  // =============================================================================
+
+  /**
+   * Check if this unit can attack the target (enhanced for battle system)
+   */
+  canAttack(target) {
+    if (!target || !target.isAlive()) return false;
+    if (target.owner === this.owner) return false; // No friendly fire
+    if (this.attack <= 0) return false; // Non-combat unit
+    if (this.isInBattle() && !this.getBattle().getAllUnits().includes(target)) {
+      // Can only attack units in the same battle
+      return false;
+    }
+    
+    // Check range
+    const [myQ, myR] = this.coords;
+    const [targetQ, targetR] = target.coords;
+    const distance = this.hexDistance(myQ, myR, targetQ, targetR);
+    
+    return distance <= this.range;
   }
 
   /**
@@ -277,6 +405,164 @@ class Unit {
     
     return false;
   }
+
+  /**
+   * Get units that this unit can currently attack
+   */
+  getAttackableTargets() {
+    const allUnits = this.scene.gameWorld.getAllUnits();
+    return allUnits.filter(unit => this.canAttack(unit));
+  }
+
+  /**
+   * Get strategic value of attacking a specific target
+   */
+  getAttackPriority(target) {
+    if (!this.canAttack(target)) return 0;
+    
+    let priority = 0;
+    
+    // Prefer low-health targets (easier kills)
+    priority += (target.maxHp - target.hp) * 2;
+    
+    // Prefer high-value targets
+    if (target.type.includes('commander') || target.type.includes('hero')) {
+      priority += 50;
+    }
+    
+    // Prefer ranged units (eliminate threats)
+    if (target.range > 1) {
+      priority += 20;
+    }
+    
+    // Distance penalty
+    const distance = this.hexDistance(...this.coords, ...target.coords);
+    priority -= distance * 5;
+    
+    return priority;
+  }
+
+  /**
+   * Find the best target to attack based on tactical considerations
+   */
+  findBestTarget() {
+    const targets = this.getAttackableTargets();
+    if (targets.length === 0) return null;
+    
+    // Sort by attack priority
+    targets.sort((a, b) => this.getAttackPriority(b) - this.getAttackPriority(a));
+    
+    return targets[0];
+  }
+
+  // =============================================================================
+  // TICK SYSTEM (Enhanced for Battle Integration)
+  // =============================================================================
+
+  /**
+   * Main tick method - handles all unit updates
+   */
+  tick() {
+    // If unit is in battle, don't process normal AI
+    if (this.isInBattle()) {
+      // Units in battle are controlled by the battle manager
+      // Just update sprite position if needed
+      this.updateSpritePosition();
+      return;
+    }
+    
+    // Normal tick behavior when not in battle
+    this.processMissions();
+    this.processMovement();
+    this.processAutoActions();
+    this.processStatusEffects();
+    this.updateSpritePosition();
+  }
+
+  /**
+   * Process unit missions/AI
+   */
+  processMissions() {
+    // Placeholder for mission system
+    if (this.mission) {
+      // Process current mission
+    }
+  }
+
+  /**
+   * Process automatic actions (like auto-battle)
+   */
+  processAutoActions() {
+    if (this.autoBattle) {
+      this.processAutoBattle();
+    }
+  }
+
+  /**
+   * Enhanced auto-battle AI that uses the battle system
+   */
+  processAutoBattle() {
+    if (!this.autoBattle) return;
+    if (this.isInBattle()) return; // Already in battle
+    
+    // Find nearest enemy within range
+    const enemies = this.scene.gameWorld.getAllUnits().filter(unit => 
+      unit.owner !== this.owner && 
+      unit.isAlive() && 
+      this.canAttack(unit)
+    );
+    
+    if (enemies.length === 0) return;
+    
+    // Sort by distance and attack the closest
+    const [myQ, myR] = this.coords;
+    enemies.sort((a, b) => {
+      const distA = this.hexDistance(myQ, myR, ...a.coords);
+      const distB = this.hexDistance(myQ, myR, ...b.coords);
+      return distA - distB;
+    });
+    
+    const target = enemies[0];
+    console.log(`🤖 ${this.type} auto-attacking ${target.type}`);
+    this.attackUnit(target);
+  }
+
+  /**
+   * Process status effects (burning, poison, etc.)
+   */
+  processStatusEffects() {
+    if (!this.statusEffects) return;
+    
+    for (const [effect, data] of Object.entries(this.statusEffects)) {
+      switch (effect) {
+        case 'burning':
+          this.takeDamage(data.damage);
+          data.duration--;
+          console.log(`🔥 ${this.type} burning for ${data.damage} damage (${data.duration} turns left)`);
+          break;
+          
+        case 'poison':
+          this.takeDamage(data.damage);
+          data.duration--;
+          console.log(`☠️ ${this.type} poisoned for ${data.damage} damage (${data.duration} turns left)`);
+          break;
+          
+        case 'slowed':
+          // Movement speed reduction is handled in movement logic
+          data.duration--;
+          break;
+      }
+      
+      // Remove expired effects
+      if (data.duration <= 0) {
+        delete this.statusEffects[effect];
+      }
+    }
+  }
+
+  // =============================================================================
+  // CORE UNIT MECHANICS (Preserved from Original)
+  // =============================================================================
 
   /**
    * Calculate hex distance between two points
@@ -335,9 +621,17 @@ class Unit {
   }
 
   /**
-   * Remove this unit from the game
+   * Remove this unit from the game (enhanced for battle cleanup)
    */
   destroy() {
+    // If unit was in battle, remove from battle tracking
+    if (this.isInBattle()) {
+      const battle = this.getBattle();
+      if (battle && this.scene.gameWorld && this.scene.gameWorld.battleManager) {
+        this.scene.gameWorld.battleManager.retreatUnit(this, battle);
+      }
+    }
+    
     if (this.sprite) {
       this.sprite.destroy();
       this.sprite = null;
@@ -350,10 +644,23 @@ class Unit {
     }
     
     // Remove from owner's unit list
-    const index = this.owner.units.indexOf(this);
-    if (index >= 0) {
-      this.owner.units.splice(index, 1);
+    if (this.owner && this.owner.units) {
+      const index = this.owner.units.indexOf(this);
+      if (index >= 0) {
+        this.owner.units.splice(index, 1);
+      }
     }
+  }
+
+  // =============================================================================
+  // UTILITY METHODS
+  // =============================================================================
+
+  /**
+   * Check if unit can move (not in battle, not dead, etc.)
+   */
+  canMove() {
+    return this.isAlive() && !this.isInBattle();
   }
 
   // Game mechanics
@@ -375,13 +682,15 @@ class Unit {
       hp: this.hp,
       maxHp: this.maxHp,
       experience: this.experience || 0,
-      level: this.level || 1
+      level: this.level || 1,
+      isInBattle: this.isInBattle(),
+      battleHex: this.getBattleHex()
     };
   }
 }
 
 // =============================================================================
-// MODULAR COMBAT RESOLVER (SEPARATE CLASS)
+// MODULAR COMBAT RESOLVER (Preserved - used as fallback)
 // =============================================================================
 
 class CombatResolver {

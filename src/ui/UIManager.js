@@ -1,4 +1,4 @@
-// src/ui/UIManager.js - Complete with Save/Load Integration
+// src/ui/UIManager.js - Complete with Save/Load and Battle System Integration
 
 class UIManager {
   constructor(scene) {
@@ -18,6 +18,12 @@ class UIManager {
     this._cancellingPlacement = false;
     this._emittingCancellation = false;
     
+    // NEW: Battle system components
+    this.battleInterface = null;
+    this.battleNotifications = [];
+    this.notificationContainer = null;
+    this.battleSystemEnabled = false;
+    
     this.initialize();
   }
 
@@ -28,11 +34,34 @@ class UIManager {
     this.adminPanel = new AdminPanel(this.scene);
     this.playerOverviewUI = new PlayerOverviewUI(this.scene); // Always created and visible
     
+    // NEW: Initialize battle interface if available
+    this.initializeBattleSystem();
+    
     // Setup input handling
     this.setupInputHandlers();
     this.setupEventListeners();
     
-    console.log('✅ UIManager initialized - PlayerOverview always visible');
+    console.log('✅ UIManager initialized - PlayerOverview always visible, Battle system:', 
+      this.battleSystemEnabled ? 'enabled' : 'disabled');
+  }
+
+  // NEW: Initialize battle system components
+  initializeBattleSystem() {
+    try {
+      // Check if battle system classes are available
+      if (typeof BattleInterface !== 'undefined') {
+        this.battleInterface = new BattleInterface(this.scene);
+        this.notificationContainer = this.createNotificationContainer();
+        this.battleSystemEnabled = true;
+        console.log('🗡️ Battle interface initialized');
+      } else {
+        console.log('ℹ️ Battle interface not available - running without battle UI');
+        this.battleSystemEnabled = false;
+      }
+    } catch (error) {
+      console.warn('⚠️ Failed to initialize battle system:', error);
+      this.battleSystemEnabled = false;
+    }
   }
 
   setupInputHandlers() {
@@ -59,7 +88,7 @@ class UIManager {
       this.toggleAdminPanel();
     });
 
-    // Save/Load hotkeys - NEW SECTION
+    // Save/Load hotkeys - Preserved exactly
     this.scene.input.keyboard.on('keydown-F5', () => {
       // F5 = Quick Save (localStorage)
       this.performQuickSave();
@@ -79,7 +108,12 @@ class UIManager {
       }
     });
 
-    // Category hotkeys (1-5)
+    // NEW: Battle system hotkeys (only if battle system enabled)
+    if (this.battleSystemEnabled) {
+      this.setupBattleHotkeys();
+    }
+
+    // Category hotkeys (1-5) - Preserved exactly
     for (let i = 1; i <= 5; i++) {
       this.scene.input.keyboard.on(`keydown-${i}`, () => {
         if (this.buildingUI.isVisible) {
@@ -92,7 +126,7 @@ class UIManager {
       });
     }
 
-    // Building hotkeys (Q, W, E, R, T, Y, U, I, O, P)
+    // Building hotkeys (Q, W, E, R, T, Y, U, I, O, P) - Preserved exactly
     const buildingHotkeys = ['Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P'];
     buildingHotkeys.forEach(key => {
       this.scene.input.keyboard.on(`keydown-${key}`, () => {
@@ -100,16 +134,19 @@ class UIManager {
       });
     });
 
-    // Clear selection on escape key
+    // Clear selection on escape key (enhanced for battle system)
     this.scene.input.keyboard.on('keydown-ESC', () => {
-      if (this.placementMode) {
+      // NEW: Close battle interface first if open
+      if (this.battleSystemEnabled && this.battleInterface && this.battleInterface.isVisible) {
+        this.hideBattleInterface();
+      } else if (this.placementMode) {
         this.cancelBuildingPlacement();
       } else {
         this.clearSelection();
       }
     });
 
-    // Mouse movement for ghost preview
+    // Mouse movement for ghost preview - Preserved exactly
     this.scene.input.on('pointermove', (pointer) => {
       if (this.placementMode) {
         this.updateGhostPreview(pointer);
@@ -117,8 +154,360 @@ class UIManager {
     });
   }
 
+  // NEW: Set up battle-related hotkeys
+  setupBattleHotkeys() {
+    try {
+      // V key: Show nearest battle interface (if not conflicting with other features)
+      this.scene.input.keyboard.on('keydown-V', () => {
+        this.toggleBattleInterface();
+      });
+
+      console.log('⌨️ Battle hotkeys enabled: V (toggle battle interface), ESC (close battle)');
+    } catch (error) {
+      console.warn('⚠️ Failed to setup battle hotkeys:', error);
+    }
+  }
+
   // ==========================================
-  // SAVE/LOAD HOTKEY METHODS
+  // BATTLE SYSTEM METHODS (NEW)
+  // ==========================================
+
+  /**
+   * NEW: Show battle interface for a specific battle
+   */
+  showBattleInterface(battleData, options = {}) {
+    if (!this.battleSystemEnabled || !this.battleInterface) {
+      console.warn('❌ Battle interface not available');
+      return;
+    }
+    
+    this.battleInterface.show(battleData, options);
+    
+    // Show battle prediction if requested
+    if (options.showPrediction) {
+      const terrain = this.scene.map.getTile(...battleData.hex);
+      this.battleInterface.showPrediction(battleData.attackers, battleData.defenders, terrain);
+    }
+  }
+
+  /**
+   * NEW: Hide battle interface
+   */
+  hideBattleInterface() {
+    if (this.battleSystemEnabled && this.battleInterface) {
+      this.battleInterface.hide();
+    }
+  }
+
+  /**
+   * NEW: Toggle battle interface visibility
+   */
+  toggleBattleInterface() {
+    if (!this.battleSystemEnabled) {
+      this.showBattleNotification('Battle system not available', 'info', 2000);
+      return;
+    }
+
+    if (!this.battleInterface) return;
+    
+    if (this.battleInterface.isVisible) {
+      this.hideBattleInterface();
+    } else {
+      // Show nearest battle
+      const centerHex = this.scene.getViewportCenter ? this.scene.getViewportCenter() : [0, 0];
+      const nearestBattle = this.scene.gameWorld.getNearestBattle ? 
+        this.scene.gameWorld.getNearestBattle(...centerHex) : null;
+      
+      if (nearestBattle) {
+        this.showBattleInterface(nearestBattle, { showPrediction: true });
+      } else {
+        this.showBattleNotification('No active battles found', 'info', 2000);
+      }
+    }
+  }
+
+  /**
+   * NEW: Create notification container for battle alerts
+   */
+  createNotificationContainer() {
+    const container = document.createElement('div');
+    container.id = 'battle-notifications';
+    container.style.cssText = `
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      width: 300px;
+      z-index: 2000;
+      pointer-events: none;
+    `;
+    document.body.appendChild(container);
+    return container;
+  }
+
+  /**
+   * NEW: Show battle notification
+   */
+  showBattleNotification(message, type = 'info', duration = 3000) {
+    // Fall back to save notification system if battle notifications not available
+    if (!this.notificationContainer) {
+      this.showSaveNotification(message, type);
+      return;
+    }
+
+    const notification = document.createElement('div');
+    const id = 'notification-' + Date.now();
+    notification.id = id;
+    
+    // Style based on type
+    let bgColor = 'rgba(74, 85, 104, 0.95)'; // default
+    let borderColor = '#4a5568';
+    let icon = '📢';
+    
+    switch (type) {
+      case 'battle-start':
+        bgColor = 'rgba(229, 62, 62, 0.95)';
+        borderColor = '#e53e3e';
+        icon = '⚔️';
+        break;
+      case 'battle-end':
+        bgColor = 'rgba(72, 187, 120, 0.95)';
+        borderColor = '#48bb78';
+        icon = '🏆';
+        break;
+      case 'retreat':
+        bgColor = 'rgba(237, 137, 54, 0.95)';
+        borderColor = '#ed8936';
+        icon = '🏃';
+        break;
+      case 'victory':
+        bgColor = 'rgba(255, 215, 0, 0.95)';
+        borderColor = '#ffd700';
+        icon = '👑';
+        break;
+      case 'info':
+        bgColor = 'rgba(14, 165, 233, 0.95)';
+        borderColor = '#0ea5e9';
+        icon = 'ℹ️';
+        break;
+    }
+    
+    notification.style.cssText = `
+      background: ${bgColor};
+      border-left: 4px solid ${borderColor};
+      padding: 12px 16px;
+      margin-bottom: 8px;
+      border-radius: 6px;
+      color: white;
+      font-family: 'Segoe UI', sans-serif;
+      font-size: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      transform: translateX(320px);
+      transition: transform 0.3s ease;
+      pointer-events: auto;
+      cursor: pointer;
+    `;
+    
+    notification.innerHTML = `
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span style="font-size: 16px;">${icon}</span>
+        <span>${message}</span>
+      </div>
+    `;
+    
+    // Add click to dismiss
+    notification.addEventListener('click', () => {
+      this.dismissNotification(id);
+    });
+    
+    this.notificationContainer.appendChild(notification);
+    this.battleNotifications.push({ id, element: notification, timeout: null });
+    
+    // Animate in
+    setTimeout(() => {
+      notification.style.transform = 'translateX(0)';
+    }, 50);
+    
+    // Auto-dismiss
+    const timeoutId = setTimeout(() => {
+      this.dismissNotification(id);
+    }, duration);
+    
+    // Update timeout reference
+    const notif = this.battleNotifications.find(n => n.id === id);
+    if (notif) notif.timeout = timeoutId;
+  }
+
+  /**
+   * NEW: Dismiss a notification
+   */
+  dismissNotification(id) {
+    const notifIndex = this.battleNotifications.findIndex(n => n.id === id);
+    if (notifIndex === -1) return;
+    
+    const notif = this.battleNotifications[notifIndex];
+    
+    // Clear timeout
+    if (notif.timeout) {
+      clearTimeout(notif.timeout);
+    }
+    
+    // Animate out
+    notif.element.style.transform = 'translateX(320px)';
+    
+    // Remove after animation
+    setTimeout(() => {
+      if (notif.element.parentNode) {
+        notif.element.parentNode.removeChild(notif.element);
+      }
+      this.battleNotifications.splice(notifIndex, 1);
+    }, 300);
+  }
+
+  /**
+   * NEW: Handle battle events and show appropriate notifications
+   */
+  onBattleEvent(event, data) {
+    switch (event) {
+      case 'battle-started':
+        this.showBattleNotification(
+          `Battle started at [${data.hex.join(', ')}]`,
+          'battle-start'
+        );
+        break;
+        
+      case 'battle-ended':
+        const victor = data.victor || 'None';
+        this.showBattleNotification(
+          `Battle ended at [${data.hex.join(', ')}] - Victor: ${victor}`,
+          'battle-end'
+        );
+        break;
+        
+      case 'unit-retreated':
+        this.showBattleNotification(
+          `${data.unit.type} retreated from battle`,
+          'retreat'
+        );
+        break;
+        
+      case 'player-victory':
+        this.showBattleNotification(
+          `Victory! Your forces won the battle at [${data.hex.join(', ')}]`,
+          'victory',
+          5000
+        );
+        break;
+    }
+  }
+
+  /**
+   * NEW: Update UI elements each tick
+   */
+  tick() {
+    // Update battle-related UI elements
+    if (this.battleSystemEnabled) {
+      this.updateBattleIndicators();
+      this.cleanupNotifications();
+    }
+  }
+
+  /**
+   * NEW: Update battle indicators on the map
+   */
+  updateBattleIndicators() {
+    if (!this.scene.gameWorld || !this.scene.gameWorld.battleManager) return;
+    
+    const battles = this.scene.gameWorld.battleManager.getActiveBattles();
+    
+    // For now, just log active battles (could add map indicators later)
+    if (battles.length > 0 && this.scene.tickCount % 10 === 0) {
+      // Only log every 10 ticks to avoid spam
+      console.log(`⚔️ ${battles.length} active battle(s)`);
+    }
+  }
+
+  /**
+   * NEW: Clean up old notifications
+   */
+  cleanupNotifications() {
+    // Remove notifications older than 30 seconds
+    const now = Date.now();
+    this.battleNotifications.forEach(notif => {
+      const age = now - parseInt(notif.id.split('-')[1]);
+      if (age > 30000) { // 30 seconds
+        this.dismissNotification(notif.id);
+      }
+    });
+  }
+
+  /**
+   * NEW: Show battle summary popup
+   */
+  showBattleSummary(battleResult) {
+    const summary = document.createElement('div');
+    summary.style.cssText = `
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 400px;
+      background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+      border: 3px solid #4a5568;
+      border-radius: 12px;
+      padding: 24px;
+      color: #e2e8f0;
+      font-family: 'Segoe UI', sans-serif;
+      z-index: 1500;
+      box-shadow: 0 20px 40px rgba(0,0,0,0.6);
+    `;
+    
+    const victor = battleResult.victor || 'Draw';
+    const victorColor = victor === 'attackers' ? '#e53e3e' : victor === 'defenders' ? '#3182ce' : '#ffd700';
+    
+    summary.innerHTML = `
+      <div style="text-align: center; margin-bottom: 20px;">
+        <h2 style="color: ${victorColor}; margin: 0 0 8px 0;">🏆 Battle Complete!</h2>
+        <div style="font-size: 18px; font-weight: bold;">Victor: ${victor}</div>
+      </div>
+      
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+        <div style="text-align: center;">
+          <div style="color: #e53e3e; font-weight: bold;">Attackers</div>
+          <div>${battleResult.attackerCasualties || 0} casualties</div>
+          <div>${battleResult.attackerSurvivors || 0} survivors</div>
+        </div>
+        <div style="text-align: center;">
+          <div style="color: #3182ce; font-weight: bold;">Defenders</div>
+          <div>${battleResult.defenderCasualties || 0} casualties</div>
+          <div>${battleResult.defenderSurvivors || 0} survivors</div>
+        </div>
+      </div>
+      
+      <div style="text-align: center;">
+        <button onclick="this.parentElement.parentElement.remove()" style="
+          background: linear-gradient(135deg, #4a5568 0%, #2d3748 100%);
+          border: none;
+          color: white;
+          padding: 8px 16px;
+          border-radius: 6px;
+          cursor: pointer;
+          font-weight: bold;
+        ">Close</button>
+      </div>
+    `;
+    
+    document.body.appendChild(summary);
+    
+    // Auto-close after 10 seconds
+    setTimeout(() => {
+      if (summary.parentNode) {
+        summary.parentNode.removeChild(summary);
+      }
+    }, 10000);
+  }
+
+  // ==========================================
+  // SAVE/LOAD HOTKEY METHODS (Preserved exactly)
   // ==========================================
 
   performQuickSave() {
@@ -269,7 +658,7 @@ class UIManager {
   }
 
   // ==========================================
-  // EXISTING METHODS (keeping all functionality)
+  // EXISTING METHODS (Preserved exactly)
   // ==========================================
 
   setupEventListeners() {
@@ -398,7 +787,7 @@ class UIManager {
     }
   }
 
-  // UI Panel Management
+  // UI Panel Management - Preserved exactly
   toggleBuildMenu() {
     this.buildingUI.toggle();
   }
@@ -416,7 +805,7 @@ class UIManager {
     this.adminPanel.hide();
   }
 
-  // Building placement methods
+  // Building placement methods - Preserved exactly
   startBuildingPlacement(building) {
     console.log(`🏗️ Starting placement of ${building.name}`);
     this.placementMode = building;
@@ -580,7 +969,7 @@ class UIManager {
     }
   }
 
-  // Admin Panel Integration Methods
+  // Admin Panel Integration Methods - Preserved exactly
   enableGodMode() {
     if (this.adminPanel) {
       this.adminPanel.godMode = true;
@@ -621,7 +1010,7 @@ class UIManager {
     }
   }
 
-  // Clean method to reset all flags (useful for debugging)
+  // Clean method to reset all flags (useful for debugging) - Preserved exactly
   resetFlags() {
     this._handlingRightClick = false;
     this._cancellingPlacement = false;
@@ -629,7 +1018,7 @@ class UIManager {
     console.log('🔧 Reset UIManager flags');
   }
 
-  // Utility methods
+  // Utility methods - Preserved exactly
   getSelectedEntity() {
     return this.selectedEntity;
   }
@@ -654,9 +1043,18 @@ class UIManager {
     return this.adminPanel && this.adminPanel.isVisible;
   }
 
-  // PlayerOverview is always visible
+  // PlayerOverview is always visible - Preserved exactly
   isPlayerOverviewOpen() {
     return true; // Always visible now
+  }
+
+  // NEW: Battle system status methods
+  isBattleSystemEnabled() {
+    return this.battleSystemEnabled;
+  }
+
+  isBattleInterfaceOpen() {
+    return this.battleSystemEnabled && this.battleInterface && this.battleInterface.isVisible;
   }
 
   destroy() {
@@ -677,10 +1075,24 @@ class UIManager {
     if (this.playerOverviewUI) {
       this.playerOverviewUI.destroy();
     }
+
+    // NEW: Clean up battle interface
+    if (this.battleInterface) {
+      this.battleInterface.destroy();
+    }
+    
+    // Clean up notifications
+    this.battleNotifications.forEach(notif => {
+      if (notif.timeout) clearTimeout(notif.timeout);
+    });
+    
+    if (this.notificationContainer && this.notificationContainer.parentNode) {
+      this.notificationContainer.parentNode.removeChild(this.notificationContainer);
+    }
   }
 }
 
-// Enhanced debug utilities for browser console
+// Enhanced debug utilities for browser console - Enhanced with battle features
 window.debugUIManager = function() {
   const scene = window.game?.scene?.getScene('MainScene');
   if (!scene?.uiManager) {
@@ -697,6 +1109,9 @@ window.debugUIManager = function() {
   console.log('- Admin panel open:', ui.isAdminPanelOpen());
   console.log('- Player overview:', 'Always visible');
   console.log('- God mode active:', ui.adminPanel?.godMode || false);
+  console.log('- Battle system enabled:', ui.battleSystemEnabled);
+  console.log('- Battle interface open:', ui.isBattleInterfaceOpen());
+  console.log('- Active battle notifications:', ui.battleNotifications.length);
   
   return ui;
 };
@@ -709,7 +1124,7 @@ window.resetUIManager = function() {
   }
 };
 
-// Quick admin commands for console
+// Quick admin commands for console - Enhanced with battle features
 window.toggleAdmin = function() {
   const ui = window.debugUIManager();
   if (ui) {
@@ -735,6 +1150,21 @@ window.setSpeed = function(speed = 2) {
   const ui = window.debugUIManager();
   if (ui) {
     ui.setTimeSpeed(speed);
+  }
+};
+
+// NEW: Battle system debug commands
+window.showBattle = function() {
+  const ui = window.debugUIManager();
+  if (ui) {
+    ui.toggleBattleInterface();
+  }
+};
+
+window.testBattleNotification = function(message = 'Test battle notification', type = 'battle-start') {
+  const ui = window.debugUIManager();
+  if (ui) {
+    ui.showBattleNotification(message, type);
   }
 };
 
