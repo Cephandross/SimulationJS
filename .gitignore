@@ -26,3 +26,8 @@ Thumbs.db
 # Temporary files
 *.tmp
 *.temp
+
+# Test files  
+mock-phaser.js
+test_battle_system_fix.html
+phaser.js

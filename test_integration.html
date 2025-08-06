@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Mock Phaser Battle Test</title>
+  <style>
+    body { margin: 0; background: #1a252f; font-family: Arial, sans-serif; color: white; }
+    #mockCanvas { width: 800px; height: 600px; background: #2a3f5f; margin: 20px; }
+    #log { position: fixed; right: 10px; top: 10px; width: 400px; max-height: 500px; overflow-y: auto; 
+           background: rgba(0,0,0,0.8); padding: 10px; font-size: 12px; }
+    .success { color: #22c55e; }
+    .error { color: #ef4444; }
+    .warning { color: #f59e0b; }
+  </style>
+</head>
+<body>
+  <div id="mockCanvas">Mock Game Canvas - Battle System Test</div>
+  <div id="log">
+    <h3>Battle System Debug Log</h3>
+    <div id="logContent"></div>
+  </div>
+
+  <script>
+    // Mock Phaser to prevent errors
+    window.Phaser = {
+      Scene: class { constructor() {} },
+      Game: class { constructor() {} },
+      AUTO: 'auto',
+      Scale: {
+        FIT: 'fit',
+        CENTER_BOTH: 'center_both'
+      }
+    };
+
+    const logContent = document.getElementById('logContent');
+    function log(msg, type = '') {
+      const div = document.createElement('div');
+      div.className = type;
+      div.innerHTML = `[${new Date().toLocaleTimeString()}] ${msg}`;
+      logContent.appendChild(div);
+      console.log(msg);
+    }
+
+    // Override console.log to capture GameWorld messages
+    const originalLog = console.log;
+    const originalWarn = console.warn;
+    console.log = function(...args) {
+      if (args[0] && args[0].includes && args[0].includes('Battle system')) {
+        log(args.join(' '), 'success');
+      }
+      originalLog.apply(console, args);
+    };
+    console.warn = function(...args) {
+      if (args[0] && args[0].includes && args[0].includes('Battle system')) {
+        log(args.join(' '), 'warning');
+      }
+      originalWarn.apply(console, args);
+    };
+  </script>
+
+  <!-- Load core files first -->
+  <script>
+    // Mock config constants if they fail to load
+    window.HEX_SIZE = 32;
+    window.WORLD_SIZE = 100;
+  </script>
+  
+  <script src="src/config.js" onerror="log('Config failed - using mocks', 'warning')"></script>
+  <script src="src/utils.js" onerror="log('Utils failed', 'error')"></script>
+  <script src="src/buildings/Building.js" onerror="log('Building failed', 'error')"></script>
+  <script src="src/units/Unit.js" onerror="log('Unit failed', 'error')"></script>
+  <script src="src/HexMap.js" onerror="log('HexMap failed - continuing', 'warning')"></script>
+  <script src="src/GameWorld.js"></script>
+  <script src="src/player.js" onerror="log('Player failed - creating mock', 'warning'); window.Player = class { constructor() {} };"></script>
+
+  <!-- Battle System -->
+  <script src="src/battle/BattleData.js"></script>
+  <script src="src/battle/BattleResolver.js"></script>
+  <script src="src/battle/BattleManager.js"></script>
+
+  <!-- UI (simplified) -->
+  <script>
+    // Mock BaseModal if it fails
+    window.BaseModal = class {
+      constructor() {}
+      show() {}
+      hide() {}
+    };
+  </script>
+  <script src="src/ui/BaseModal.js" onerror="console.log('BaseModal using mock')"></script>
+  <script src="src/ui/AdminPanel.js"></script>
+
+  <script>
+    window.onload = function() {
+      log('Starting battle system integration test', 'success');
+      
+      try {
+        // Create minimal scene like main.js does
+        const mockMainScene = {
+          players: [],
+          cameras: { 
+            main: { 
+              setBounds: () => {}, 
+              centerOn: () => {} 
+            } 
+          },
+          scene: { launch: () => {} },
+          registry: { set: () => {} },
+          map: null, // Mock map
+          uiManager: null
+        };
+
+        log('Creating GameWorld...', '');
+        const gameWorld = new GameWorld(mockMainScene);
+        mockMainScene.gameWorld = gameWorld;
+        
+        log(`GameWorld created: ${!!gameWorld}`, gameWorld ? 'success' : 'error');
+        log(`battleManager: ${!!gameWorld.battleManager}`, gameWorld.battleManager ? 'success' : 'error');
+        
+        // Now create AdminPanel like UIManager does
+        log('Creating AdminPanel...', '');
+        const adminPanel = new AdminPanel(mockMainScene);
+        
+        log('AdminPanel created successfully!', 'success');
+        
+        // Test other issues mentioned
+        log('<br><strong>Testing other issues:</strong>', '');
+        
+        // Test unit spawning (this might be where the real issues are)
+        if (typeof Player !== 'undefined' && gameWorld.players) {
+          try {
+            const testPlayer = new Player('TestPlayer', 0xff0000, gameWorld);
+            gameWorld.addPlayer(testPlayer);
+            log(`Test player added: ${!!testPlayer}`, 'success');
+            log(`GameWorld players: ${gameWorld.players.length}`, 'success');
+          } catch (e) {
+            log(`Player creation failed: ${e.message}`, 'error');
+          }
+        }
+        
+      } catch (error) {
+        log(`Integration test failed: ${error.message}`, 'error');
+        log(`Stack: ${error.stack}`, 'error');
+      }
+    };
+  </script>
+</body>
+</html>

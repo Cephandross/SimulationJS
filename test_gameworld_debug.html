@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>GameWorld BattleManager Test</title>
+</head>
+<body>
+  <div id="output"></div>
+  
+  <script>
+    const output = document.getElementById('output');
+    function log(msg) {
+      const p = document.createElement('p');
+      p.innerHTML = msg;
+      output.appendChild(p);
+      console.log(msg);
+    }
+    
+    log('Starting GameWorld BattleManager test...');
+  </script>
+  
+  <!-- Load battle system files first -->
+  <script src="src/battle/BattleData.js" onerror="console.log('Failed to load BattleData')"></script>
+  <script src="src/battle/BattleResolver.js" onerror="console.log('Failed to load BattleResolver')"></script>
+  <script src="src/battle/BattleManager.js" onerror="console.log('Failed to load BattleManager')"></script>
+  <script src="src/GameWorld.js" onerror="console.log('Failed to load GameWorld')"></script>
+  
+  <script>
+    log(`<strong>Class Availability Check:</strong>`);
+    log(`BattleData: ${typeof BattleData !== 'undefined'}`);
+    log(`BattleResolver: ${typeof BattleResolver !== 'undefined'}`);
+    log(`BattleManager: ${typeof BattleManager !== 'undefined'}`);
+    log(`GameWorld: ${typeof GameWorld !== 'undefined'}`);
+    
+    log(`<br><strong>GameWorld Creation Test:</strong>`);
+    
+    try {
+      // Mock scene object (minimal)
+      const mockScene = { players: [] };
+      const gameWorld = new GameWorld(mockScene);
+      
+      log(`✅ GameWorld created successfully`);
+      log(`battleManager exists: ${!!gameWorld.battleManager}`);
+      
+      // Show the exact values being checked in AdminPanel
+      const availability = {
+        gameWorld: !!gameWorld,
+        battleManager: !!gameWorld.battleManager,
+        BattleManager: typeof BattleManager !== 'undefined',
+        enabled: !!gameWorld.battleManager
+      };
+      
+      log(`<br><strong>Availability Check (like AdminPanel):</strong>`);
+      log(`<pre>${JSON.stringify(availability, null, 2)}</pre>`);
+      
+    } catch (error) {
+      log(`❌ Error creating GameWorld: ${error.message}`);
+      log(`Stack: ${error.stack}`);
+    }
+  </script>
+</body>
+</html>

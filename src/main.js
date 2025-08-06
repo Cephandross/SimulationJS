@@ -118,16 +118,16 @@ class MainScene extends Phaser.Scene {
   spawnInitialTestUnits(cpu1, cpu2) {
     try {
       // Only spawn if we have the unit classes available
-      if (typeof Warrior !== 'undefined' && typeof Archer !== 'undefined') {
+      if (typeof FootSoldier !== 'undefined' && typeof MountedArcher !== 'undefined') {
         // CPU1 starting units (red team)
         const cpu1Pos = [5, 5];
-        cpu1.spawnUnit(Warrior, cpu1Pos);
-        cpu1.spawnUnit(Archer, [cpu1Pos[0] + 1, cpu1Pos[1]]);
+        cpu1.spawnUnit(FootSoldier, cpu1Pos);
+        cpu1.spawnUnit(MountedArcher, [cpu1Pos[0] + 1, cpu1Pos[1]]);
         
         // CPU2 starting units (blue team)  
         const cpu2Pos = [-5, -5];
-        cpu2.spawnUnit(Warrior, cpu2Pos);
-        cpu2.spawnUnit(Archer, [cpu2Pos[0] - 1, cpu2Pos[1]]);
+        cpu2.spawnUnit(FootSoldier, cpu2Pos);
+        cpu2.spawnUnit(MountedArcher, [cpu2Pos[0] - 1, cpu2Pos[1]]);
         
         console.log('🗡️ Initial battle test units spawned');
       } else {

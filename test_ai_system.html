@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>AI System Test</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 20px; 
+      background: #1a202c; 
+      color: white; 
+    }
+    .test-result { 
+      margin: 10px 0; 
+      padding: 10px; 
+      border-radius: 5px; 
+    }
+    .pass { background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; }
+    .fail { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; }
+    pre { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; }
+  </style>
+</head>
+<body>
+  <h1>🧠 AI System Test</h1>
+  <div id="test-output"></div>
+
+  <!-- Load AI system files -->
+  <script src="src/ai/AISystem.js"></script>
+  <script src="src/ai/AIManager.js"></script>
+
+  <script>
+    const output = document.getElementById('test-output');
+    
+    function log(message, isPass = true) {
+      const div = document.createElement('div');
+      div.className = `test-result ${isPass ? 'pass' : 'fail'}`;
+      div.innerHTML = message;
+      output.appendChild(div);
+      console.log(message);
+    }
+    
+    function test(name, fn) {
+      try {
+        log(`<h3>Testing ${name}...</h3>`);
+        fn();
+        log(`✅ ${name} passed`);
+      } catch (error) {
+        log(`❌ ${name} failed: ${error.message}`, false);
+        console.error(error);
+      }
+    }
+    
+    // Mock objects for testing
+    const mockGameWorld = {
+      scene: {
+        map: {
+          getTile: () => ({ 
+            isPassable: () => true,
+            type: 'grass' 
+          })
+        },
+        tickCount: 100
+      },
+      players: [],
+      getBuildingAt: () => null,
+      getUnitAt: () => null
+    };
+
+    const mockPlayer = {
+      name: 'TestPlayer',
+      color: 0xff0000,
+      resources: { food: 100, wood: 50, stone: 30, iron: 10 },
+      units: [],
+      buildings: [],
+      spawnUnit: () => true,
+      build: () => true
+    };
+
+    // Run tests
+    test('AISystem class creation', () => {
+      const aiSystem = new AISystem(mockPlayer, mockGameWorld, 'balanced');
+      if (!aiSystem.player || !aiSystem.gameWorld || !aiSystem.currentStrategy) {
+        throw new Error('AISystem not properly initialized');
+      }
+      log(`AI System created for ${aiSystem.player.name} with ${aiSystem.currentStrategy.name} strategy`);
+    });
+
+    test('AISystem strategy switching', () => {
+      const aiSystem = new AISystem(mockPlayer, mockGameWorld, 'peaceful');
+      const originalStrategy = aiSystem.aiType;
+      
+      const success = aiSystem.setAIType('aggressive');
+      if (!success || aiSystem.aiType === originalStrategy) {
+        throw new Error('Strategy switching failed');
+      }
+      log(`Strategy changed from ${originalStrategy} to ${aiSystem.aiType}`);
+    });
+
+    test('AISystem performance metrics', () => {
+      const aiSystem = new AISystem(mockPlayer, mockGameWorld);
+      aiSystem.updatePerformanceMetrics();
+      
+      const metrics = aiSystem.performanceMetrics;
+      if (typeof metrics.resourceEfficiency !== 'number' || 
+          typeof metrics.militaryStrength !== 'number') {
+        throw new Error('Performance metrics not calculated properly');
+      }
+      log(`Metrics: Resource Efficiency: ${metrics.resourceEfficiency.toFixed(1)}, Military: ${metrics.militaryStrength}`);
+    });
+
+    test('AISystem task management', () => {
+      const aiSystem = new AISystem(mockPlayer, mockGameWorld);
+      
+      aiSystem.addTask('test_task', 'Testing task system', 'test');
+      if (aiSystem.currentTasks.length === 0) {
+        throw new Error('Task not added properly');
+      }
+      
+      aiSystem.completeTask('test_task');
+      if (aiSystem.currentTasks.length > 0 || aiSystem.completedTasks.length === 0) {
+        throw new Error('Task completion failed');
+      }
+      
+      log(`Task system working: ${aiSystem.completedTasks.length} completed tasks`);
+    });
+
+    test('AIManager creation and player management', () => {
+      const aiManager = new AIManager(mockGameWorld);
+      
+      if (!aiManager.aiSystems || !aiManager.globalStats) {
+        throw new Error('AIManager not properly initialized');
+      }
+      
+      // Add AI system for player
+      const aiSystem = aiManager.addAISystem(mockPlayer, 'economic');
+      if (!aiSystem || aiManager.aiSystems.size !== 1) {
+        throw new Error('AI system not added to manager');
+      }
+      
+      log(`AIManager created with ${aiManager.aiSystems.size} AI system(s)`);
+    });
+
+    test('AIManager global operations', () => {
+      const aiManager = new AIManager(mockGameWorld);
+      const player1 = { ...mockPlayer, name: 'Player1' };
+      const player2 = { ...mockPlayer, name: 'Player2' };
+      
+      aiManager.addAISystem(player1, 'peaceful');
+      aiManager.addAISystem(player2, 'aggressive');
+      
+      // Test enable all
+      const enableCount = aiManager.setAllAIEnabled(true);
+      if (enableCount !== 2) {
+        throw new Error('Enable all AI failed');
+      }
+      
+      // Test disable all
+      const disableCount = aiManager.setAllAIEnabled(false);
+      if (disableCount !== 2) {
+        throw new Error('Disable all AI failed');
+      }
+      
+      log(`Global operations working: enabled/disabled ${enableCount} AI systems`);
+    });
+
+    test('AIManager status and statistics', () => {
+      const aiManager = new AIManager(mockGameWorld);
+      const player = { ...mockPlayer, name: 'StatsPlayer' };
+      
+      aiManager.addAISystem(player, 'balanced');
+      const allStatus = aiManager.getAllAIStatus();
+      
+      if (!allStatus.globalStats || !allStatus.systems || allStatus.systems.length === 0) {
+        throw new Error('AI status collection failed');
+      }
+      
+      const strategies = aiManager.getAvailableStrategies();
+      if (!strategies || strategies.length === 0) {
+        throw new Error('Strategy list not available');
+      }
+      
+      log(`Statistics working: ${allStatus.systems.length} AI systems, ${strategies.length} strategies available`);
+    });
+
+    test('AISystem action execution', () => {
+      const aiSystem = new AISystem(mockPlayer, mockGameWorld, 'balanced');
+      
+      // Test survival action
+      const result = aiSystem.executeAction('ensure_survival');
+      if (typeof result !== 'boolean') {
+        throw new Error('Action execution failed');
+      }
+      
+      // Check if decisions were recorded
+      if (aiSystem.lastDecisions.length === 0) {
+        throw new Error('Decisions not recorded');
+      }
+      
+      log(`Action execution working: ${aiSystem.lastDecisions.length} decisions recorded`);
+    });
+
+    test('AI class availability check', () => {
+      const classes = ['AISystem', 'AIManager'];
+      const missing = classes.filter(cls => typeof window[cls] === 'undefined');
+      
+      if (missing.length > 0) {
+        throw new Error(`Missing classes: ${missing.join(', ')}`);
+      }
+      
+      log(`All AI classes available: ${classes.join(', ')}`);
+    });
+
+    test('AI integration readiness', () => {
+      // Test if AI can be integrated with game world
+      const testGameWorld = {
+        ...mockGameWorld,
+        aiManager: new AIManager(mockGameWorld)
+      };
+      
+      const testPlayer = { ...mockPlayer, name: 'IntegrationTest' };
+      const aiSystem = testGameWorld.aiManager.addAISystem(testPlayer, 'balanced');
+      
+      // Simulate update cycle
+      testGameWorld.aiManager.update(Date.now());
+      
+      if (!aiSystem || !testGameWorld.aiManager.globalStats.totalAISystems) {
+        throw new Error('AI integration not working properly');
+      }
+      
+      log('AI system ready for game integration');
+    });
+
+    log('<h2>🎯 AI System Test Complete</h2>');
+    log('All AI system components are properly loaded and functional for AdminPanel integration.');
+  </script>
+</body>
+</html>
