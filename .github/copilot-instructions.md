@@ -12,7 +12,7 @@ SimulationJS is a browser-based hex grid strategy simulation game built with Pha
 - **Sharp dependency fix**: If hexify fails with sharp errors, run: `npm install sharp --include=optional`
 
 ### Asset Processing
-- **Process hex tiles**: `npm run hexify` -- takes 0.21 seconds. Creates 297 hex tiles from source PNG files. NEVER CANCEL.
+- **Process hex tiles**: `npm run hexify` -- takes < 1 second. Creates 297 hex tiles from source PNG files. NEVER CANCEL.
 - **Alternative**: `node hexify-sharp.js` (same result, same timing)
 - **Asset verification**: `find assets/hex_tiles -name "*.png" | wc -l` should return exactly 297
 - **Processing speed**: Very fast (~0.2s), no timeout needed
