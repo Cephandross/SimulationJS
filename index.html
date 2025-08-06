@@ -40,7 +40,13 @@
   <script src="src/units/Support.js"></script>
   <script src="src/units/Utility.js"></script>
 
-  <!-- 9) UI Components - ORDER MATTERS -->
+  <!-- 9) Battle System (optional - loads gracefully) -->
+  <script src="src/battle/BattleData.js" onerror="console.warn('Battle system not available')"></script>
+  <script src="src/battle/BattleResolver.js" onerror="console.warn('Battle resolver not available')"></script>
+  <script src="src/battle/BattleManager.js" onerror="console.warn('Battle manager not available')"></script>
+  <script src="src/ui/BattleInterface.js" onerror="console.warn('Battle interface not available')"></script>
+
+  <!-- 10) UI Components - ORDER MATTERS -->
   <script src="src/ui/BaseModal.js"></script>
   <script src="src/ui/components/ResourceCost.js"></script>
   <script src="src/ui/modals/BuildingPlacementUI.js"></script>
@@ -48,9 +54,10 @@
   <script src="src/ui/PlayerOverviewUI.js"></script>
   <script src="src/ui/AdminPanel.js"></script>
   <script src="src/ui/UIManager.js"></script>
-<script src="src/persistence/GamePersistence.js"></script>
-<script src="src/persistence/FullWorldPersistence.js"></script>
-  <!-- 10) Scenes -->
+  <script src="src/persistence/GamePersistence.js"></script>
+  <script src="src/persistence/FullWorldPersistence.js"></script>
+
+  <!-- 11) Scenes -->
   <script src="src/UIScene.js"></script>
   <script src="src/main.js"></script>
  
@@ -60,7 +67,7 @@
   </style>
 </head>
 <body>
-  <!-- 11) Bootstrap the game -->
+  <!-- 12) Bootstrap the game -->
   <script>
     window.onload = () => {
       new Phaser.Game({
