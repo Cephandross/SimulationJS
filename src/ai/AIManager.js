@@ -70,12 +70,14 @@ class AIManager {
 
   /**
    * Update all AI systems
+   * @param {number} gameTime - Current game time in milliseconds
+   * @param {number} gameTick - Current game tick number (optional)
    */
-  update(gameTime) {
+  update(gameTime, gameTick = null) {
     // Update individual AI systems
     for (const [playerId, aiSystem] of this.aiSystems) {
       if (aiSystem.enabled) {
-        aiSystem.update(gameTime);
+        aiSystem.update(gameTime, gameTick);
       }
     }
     
@@ -175,6 +177,34 @@ class AIManager {
     }
     this.updateGlobalStats();
     console.log(`🤖 ${enabled ? 'Enabled' : 'Disabled'} AI for ${count} players`);
+    return count;
+  }
+
+  /**
+   * Set update frequency for a specific player's AI
+   * @param {Object} player - The player object
+   * @param {number|string} frequency - Time in ms, or 'every_tick' for per-tick updates
+   */
+  setPlayerAIFrequency(player, frequency) {
+    const aiSystem = this.getAISystem(player);
+    if (aiSystem) {
+      return aiSystem.setUpdateFrequency(frequency);
+    }
+    return false;
+  }
+
+  /**
+   * Set update frequency for all AI systems
+   * @param {number|string} frequency - Time in ms, or 'every_tick' for per-tick updates
+   */
+  setAllAIFrequency(frequency) {
+    let count = 0;
+    for (const [playerId, aiSystem] of this.aiSystems) {
+      if (aiSystem.setUpdateFrequency(frequency)) {
+        count++;
+      }
+    }
+    console.log(`🤖 Set AI update frequency to ${frequency} for ${count} systems`);
     return count;
   }
 

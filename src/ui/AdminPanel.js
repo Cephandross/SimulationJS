@@ -1157,7 +1157,9 @@ class AdminPanel extends BaseModal {
         { label: '🟢 Enable All AI', action: () => this.enableAllAI(), color: 'rgba(34, 197, 94, 0.8)' },
         { label: '🔴 Disable All AI', action: () => this.disableAllAI(), color: 'rgba(239, 68, 68, 0.8)' },
         { label: '🔧 Debug Mode', action: () => this.toggleAIDebugMode(), color: 'rgba(107, 114, 128, 0.8)' },
-        { label: '📊 AI Status', action: () => this.showAIStatus(), color: 'rgba(59, 130, 246, 0.8)' }
+        { label: '📊 AI Status', action: () => this.showAIStatus(), color: 'rgba(59, 130, 246, 0.8)' },
+        { label: '⚡ Per-Tick AI', action: () => this.enablePerTickAI(), color: 'rgba(236, 72, 153, 0.8)' },
+        { label: '⏰ Normal Speed', action: () => this.setNormalAISpeed(), color: 'rgba(168, 85, 247, 0.8)' }
       ];
 
       globalOptions.forEach(({ label, action, color }) => {
@@ -1314,6 +1316,28 @@ class AdminPanel extends BaseModal {
       toggleBtn.onclick = () => this.togglePlayerAI(player, toggleBtn);
       playerControl.appendChild(toggleBtn);
 
+      // Frequency control
+      const freqBtn = document.createElement('button');
+      const aiSystem = this.scene.gameWorld.aiManager.getAISystem(player);
+      const currentFreq = aiSystem ? aiSystem.getUpdateConfig().frequency : '3000ms';
+      const isPerTick = currentFreq === 'every_tick';
+      
+      freqBtn.textContent = isPerTick ? '⚡' : '⏰';
+      freqBtn.title = isPerTick ? 'Per-tick updates' : `Time-based: ${currentFreq}`;
+      freqBtn.style.cssText = `
+        padding: 2px 6px;
+        border: none;
+        border-radius: 3px;
+        background: ${isPerTick ? '#ec4899' : '#8b5cf6'};
+        color: white;
+        cursor: pointer;
+        font-size: 9px;
+        margin-left: 2px;
+        min-width: 20px;
+      `;
+      freqBtn.onclick = () => this.togglePlayerAIFrequency(player, freqBtn);
+      playerControl.appendChild(freqBtn);
+
       playersContainer.appendChild(playerControl);
     });
 
@@ -1402,6 +1426,26 @@ class AdminPanel extends BaseModal {
     this.buildInterface();
   }
 
+  enablePerTickAI() {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    const count = this.scene.gameWorld.aiManager.setAllAIFrequency('every_tick');
+    this.showNotification(`⚡ Enabled per-tick updates for ${count} AI systems`, 'info');
+  }
+
+  setNormalAISpeed() {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    const count = this.scene.gameWorld.aiManager.setAllAIFrequency(3000); // 3 second default
+    this.showNotification(`⏰ Set normal update speed (3s) for ${count} AI systems`, 'info');
+  }
+
   toggleAIDebugMode() {
     if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
       this.showNotification('❌ AI system not available', 'error');
@@ -1423,6 +1467,34 @@ class AdminPanel extends BaseModal {
     this.scene.gameWorld.aiManager.debugAllSystems();
     this.showNotification('📊 AI status logged to console', 'info');
     this.refreshAIStats();
+  }
+
+  togglePlayerAIFrequency(player, button) {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    const aiSystem = this.scene.gameWorld.aiManager.getAISystem(player);
+    if (!aiSystem) {
+      this.showNotification(`❌ No AI system for ${player.name}`, 'error');
+      return;
+    }
+
+    const currentConfig = aiSystem.getUpdateConfig();
+    const newFrequency = currentConfig.tickBasedUpdates ? 3000 : 'every_tick';
+    
+    if (this.scene.gameWorld.aiManager.setPlayerAIFrequency(player, newFrequency)) {
+      const isPerTick = newFrequency === 'every_tick';
+      button.textContent = isPerTick ? '⚡' : '⏰';
+      button.title = isPerTick ? 'Per-tick updates' : `Time-based: ${newFrequency}ms`;
+      button.style.background = isPerTick ? '#ec4899' : '#8b5cf6';
+      
+      this.showNotification(
+        `🔄 ${player.name}: ${isPerTick ? 'Per-tick' : 'Time-based'} AI updates`, 
+        'info'
+      );
+    }
   }
 
   changePlayerAIStrategy(player, strategy) {

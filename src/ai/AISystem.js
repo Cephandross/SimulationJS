@@ -83,9 +83,11 @@ class AISystem {
     // Current strategy
     this.currentStrategy = this.strategies[aiType] || this.strategies['balanced'];
     
-    // Tick timing
+    // Tick timing - configurable update frequency
     this.lastUpdate = 0;
-    this.updateInterval = 3000; // Update every 3 seconds
+    this.lastTickUpdate = null; // Track last game tick for tick-based updates
+    this.updateInterval = 3000; // Default: Update every 3 seconds (6 game ticks)
+    this.tickBasedUpdates = false; // When true, updates every game tick regardless of time
     
     // Initialize AI
     this.initialize();
@@ -104,11 +106,24 @@ class AISystem {
 
   /**
    * Main AI update loop - called periodically by the game
+   * Can operate on tick-based or time-based updates
    */
-  update(gameTime) {
-    if (!this.enabled || gameTime - this.lastUpdate < this.updateInterval) return;
+  update(gameTime, gameTick = null) {
+    if (!this.enabled) return;
     
-    this.lastUpdate = gameTime;
+    // Check if we should update based on mode
+    const shouldUpdate = this.tickBasedUpdates ? 
+      (gameTick !== null && gameTick !== this.lastTickUpdate) :
+      (gameTime - this.lastUpdate >= this.updateInterval);
+    
+    if (!shouldUpdate) return;
+    
+    // Update tracking
+    if (this.tickBasedUpdates) {
+      this.lastTickUpdate = gameTick;
+    } else {
+      this.lastUpdate = gameTime;
+    }
     
     try {
       // Update performance metrics
@@ -861,8 +876,35 @@ class AISystem {
   }
 
   /**
-   * Enable or disable debug mode
+   * Set update frequency - can be time-based or tick-based
+   * @param {number|string} frequency - Time in ms, or 'every_tick' for per-tick updates
    */
+  setUpdateFrequency(frequency) {
+    if (frequency === 'every_tick') {
+      this.tickBasedUpdates = true;
+      this.updateInterval = 0;
+      console.log(`🤖 ${this.player.name}: Switched to per-tick AI updates`);
+    } else if (typeof frequency === 'number' && frequency > 0) {
+      this.tickBasedUpdates = false;
+      this.updateInterval = frequency;
+      console.log(`🤖 ${this.player.name}: AI update interval set to ${frequency}ms`);
+    } else {
+      console.warn(`🤖 ${this.player.name}: Invalid frequency ${frequency}`);
+      return false;
+    }
+    return true;
+  }
+
+  /**
+   * Get current update configuration
+   */
+  getUpdateConfig() {
+    return {
+      tickBasedUpdates: this.tickBasedUpdates,
+      updateInterval: this.updateInterval,
+      frequency: this.tickBasedUpdates ? 'every_tick' : `${this.updateInterval}ms`
+    };
+  }
   setDebugMode(debug) {
     this.debugMode = debug;
     console.log(`🤖 ${this.player.name}: Debug mode ${debug ? 'enabled' : 'disabled'}`);
@@ -876,6 +918,7 @@ class AISystem {
       enabled: this.enabled,
       aiType: this.aiType,
       strategy: this.currentStrategy,
+      updateConfig: this.getUpdateConfig(),
       currentTasks: this.currentTasks,
       completedTasks: this.completedTasks.slice(0, 10), // Recent completed tasks
       lastDecisions: this.lastDecisions.slice(0, 10), // Recent decisions

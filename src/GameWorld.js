@@ -185,9 +185,9 @@ class GameWorld {
       player.tick();
     });
 
-    // Update AI systems if available
+    // Update AI systems if available (enhanced with tick-based updates)
     if (this.aiManager) {
-      this.aiManager.update(Date.now());
+      this.aiManager.update(Date.now(), this.tickCount);
     }
 
     // Update battle system if available
