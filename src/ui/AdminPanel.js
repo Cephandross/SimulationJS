@@ -1,10 +1,10 @@
-// src/ui/AdminPanel.js - Complete with Save/Load Integration
+// src/ui/AdminPanel.js - Complete with Save/Load and Battle System Integration
 
 class AdminPanel extends BaseModal {
   constructor(scene) {
     super(scene, {
       width: 400,
-      height: 800, // Increased height for save/load section
+      height: 900, // Increased height for battle section
       x: window.innerWidth - 420,
       y: 20,
       title: '⚡ Admin Panel',
@@ -17,13 +17,16 @@ class AdminPanel extends BaseModal {
     this.autoSaveEnabled = false;
     this.currentSaveSystem = 'quick'; // 'quick' or 'full'
     
+    // NEW: Battle system state
+    this.battleSystemEnabled = false;
+    
     // Override container styling for better visibility
     this.container.style.cssText = `
       position: fixed;
       left: ${window.innerWidth - 420}px;
       top: 20px;
       width: 400px;
-      height: 800px;
+      height: 900px;
       background: rgba(17, 24, 39, 0.98);
       border: 2px solid rgb(75, 85, 99);
       border-radius: 8px;
@@ -37,10 +40,23 @@ class AdminPanel extends BaseModal {
       display: none;
     `;
     
+    // NEW: Check if battle system is available
+    this.checkBattleSystemAvailability();
+    
     this.buildInterface();
     this.setupHotkeys();
     
-    console.log('✅ AdminPanel created and styled');
+    console.log('✅ AdminPanel created and styled - Battle system:', 
+      this.battleSystemEnabled ? 'enabled' : 'disabled');
+  }
+
+  // NEW: Check if battle system components are available
+  checkBattleSystemAvailability() {
+    this.battleSystemEnabled = !!(
+      this.scene.gameWorld && 
+      this.scene.gameWorld.battleManager &&
+      typeof BattleManager !== 'undefined'
+    );
   }
 
   show() {
@@ -58,7 +74,406 @@ class AdminPanel extends BaseModal {
   }
 
   // ==========================================
-  // SAVE/LOAD SYSTEM INTEGRATION
+  // BATTLE SYSTEM INTEGRATION (NEW)
+  // ==========================================
+
+  /**
+   * NEW: Create battle system section
+   */
+  createBattleSection() {
+    if (!this.godMode) return;
+
+    const section = document.createElement('div');
+    section.style.cssText = `
+      padding: 12px;
+      border-bottom: 1px solid rgb(75, 85, 99);
+      background: rgba(220, 38, 38, 0.1);
+    `;
+
+    const header = document.createElement('h3');
+    header.textContent = '⚔️ Battle System';
+    header.style.cssText = 'margin: 0 0 12px 0; color: white; font-size: 16px;';
+    section.appendChild(header);
+
+    // Battle availability status
+    const statusIndicator = document.createElement('div');
+    statusIndicator.style.cssText = `
+      background: ${this.battleSystemEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'};
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      text-align: center;
+      font-size: 12px;
+      border: 1px solid ${this.battleSystemEnabled ? '#22c55e' : '#ef4444'};
+    `;
+    statusIndicator.innerHTML = `
+      <div style="color: ${this.battleSystemEnabled ? '#22c55e' : '#ef4444'}; font-weight: bold;">
+        ${this.battleSystemEnabled ? '✅ Battle System Active' : '❌ Battle System Disabled'}
+      </div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 4px;">
+        ${this.battleSystemEnabled ? 
+          'All battle features available' : 
+          'Add battle system files to enable'
+        }
+      </div>
+    `;
+    section.appendChild(statusIndicator);
+
+    if (this.battleSystemEnabled) {
+      // Battle control buttons
+      const battleButtons = document.createElement('div');
+      battleButtons.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;';
+
+      const battleOptions = [
+        { label: '🗡️ Spawn Test Armies', action: () => this.spawnTestArmies(), color: 'rgba(239, 68, 68, 0.8)' },
+        { label: '⚔️ Start Test Battle', action: () => this.simulateTestBattle(), color: 'rgba(220, 38, 38, 0.8)' },
+        { label: '👁️ Show Nearest Battle', action: () => this.showNearestBattle(), color: 'rgba(168, 85, 247, 0.8)' },
+        { label: '🏁 End All Battles', action: () => this.endAllBattles(), color: 'rgba(107, 114, 128, 0.8)' }
+      ];
+
+      battleOptions.forEach(({ label, action, color }) => {
+        const btn = document.createElement('button');
+        btn.innerHTML = label;
+        btn.style.cssText = `
+          padding: 10px;
+          border: none;
+          border-radius: 4px;
+          background: ${color};
+          color: white;
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 500;
+          transition: all 0.2s;
+        `;
+        
+        btn.onmouseover = () => {
+          btn.style.transform = 'scale(1.05)';
+          btn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        };
+        
+        btn.onmouseout = () => {
+          btn.style.transform = 'scale(1)';
+          btn.style.boxShadow = 'none';
+        };
+        
+        btn.onclick = action;
+        battleButtons.appendChild(btn);
+      });
+
+      section.appendChild(battleButtons);
+
+      // Battle statistics display
+      const statsContainer = document.createElement('div');
+      statsContainer.style.cssText = `
+        background: rgba(31, 41, 55, 0.5);
+        border-radius: 4px;
+        padding: 8px;
+        margin-bottom: 8px;
+      `;
+
+      const statsTitle = document.createElement('div');
+      statsTitle.textContent = '📊 Battle Statistics';
+      statsTitle.style.cssText = 'font-size: 12px; font-weight: bold; color: rgb(156, 163, 175); margin-bottom: 6px;';
+      statsContainer.appendChild(statsTitle);
+
+      const statsDisplay = document.createElement('div');
+      statsDisplay.id = 'battle-stats-display';
+      statsDisplay.style.cssText = 'font-size: 11px; color: rgb(209, 213, 219);';
+      this.updateBattleStats(statsDisplay);
+      statsContainer.appendChild(statsDisplay);
+
+      section.appendChild(statsContainer);
+
+      // Battle debug controls
+      const debugContainer = document.createElement('div');
+      debugContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 6px;';
+
+      const debugBattlesBtn = document.createElement('button');
+      debugBattlesBtn.innerHTML = '🔍 Debug Battles';
+      debugBattlesBtn.style.cssText = `
+        padding: 6px;
+        border: none;
+        border-radius: 3px;
+        background: rgba(75, 85, 99, 0.8);
+        color: white;
+        cursor: pointer;
+        font-size: 10px;
+      `;
+      debugBattlesBtn.onclick = () => this.debugBattles();
+
+      const refreshStatsBtn = document.createElement('button');
+      refreshStatsBtn.innerHTML = '🔄 Refresh Stats';
+      refreshStatsBtn.style.cssText = `
+        padding: 6px;
+        border: none;
+        border-radius: 3px;
+        background: rgba(75, 85, 99, 0.8);
+        color: white;
+        cursor: pointer;
+        font-size: 10px;
+      `;
+      refreshStatsBtn.onclick = () => this.refreshBattleStats();
+
+      debugContainer.appendChild(debugBattlesBtn);
+      debugContainer.appendChild(refreshStatsBtn);
+      section.appendChild(debugContainer);
+
+    } else {
+      // Battle system disabled message
+      const disabledMessage = document.createElement('div');
+      disabledMessage.style.cssText = `
+        text-align: center;
+        color: rgb(156, 163, 175);
+        font-size: 12px;
+        font-style: italic;
+        padding: 16px;
+      `;
+      disabledMessage.textContent = 'Add battle system files to enable tactical combat features';
+      section.appendChild(disabledMessage);
+    }
+
+    this.addToContent(section);
+  }
+
+  /**
+   * NEW: Spawn test armies for battle testing
+   */
+  spawnTestArmies() {
+    if (!this.battleSystemEnabled) {
+      this.showNotification('Battle system not enabled', 'error');
+      return;
+    }
+
+    const players = this.scene.gameWorld.players;
+    if (players.length < 2) {
+      this.showNotification('Need at least 2 players for test armies', 'error');
+      return;
+    }
+
+    const player1 = players[0];
+    const player2 = players[1];
+
+    // Clear existing units
+    let totalCleared = 0;
+    [player1, player2].forEach(player => {
+      player.units.forEach(unit => unit.destroy());
+      totalCleared += player.units.length;
+      player.units = [];
+    });
+
+    // Spawn armies near each other
+    const army1Pos = [0, 0];
+    const army2Pos = [3, 0];
+
+    let totalSpawned = 0;
+
+    try {
+      // Player 1 army (Red)
+      for (let i = 0; i < 3; i++) {
+        if (typeof Warrior !== 'undefined' && player1.spawnUnit(Warrior, [army1Pos[0], army1Pos[1] + i])) totalSpawned++;
+        if (typeof Archer !== 'undefined' && player1.spawnUnit(Archer, [army1Pos[0] - 1, army1Pos[1] + i])) totalSpawned++;
+      }
+
+      // Player 2 army (Blue)  
+      for (let i = 0; i < 3; i++) {
+        if (typeof Warrior !== 'undefined' && player2.spawnUnit(Warrior, [army2Pos[0], army2Pos[1] + i])) totalSpawned++;
+        if (typeof Archer !== 'undefined' && player2.spawnUnit(Archer, [army2Pos[0] + 1, army2Pos[1] + i])) totalSpawned++;
+      }
+
+      this.showNotification(`🗡️ Test armies spawned! ${totalSpawned} units created`, 'success');
+      console.log(`🗡️ Test armies spawned (cleared ${totalCleared}, spawned ${totalSpawned})`);
+      
+    } catch (error) {
+      this.showNotification('❌ Failed to spawn armies: ' + error.message, 'error');
+      console.error('Army spawning error:', error);
+    }
+    
+    this.buildInterface(); // Refresh the interface
+  }
+
+  /**
+   * NEW: Simulate a test battle
+   */
+  simulateTestBattle() {
+    if (!this.battleSystemEnabled) {
+      this.showNotification('Battle system not enabled', 'error');
+      return;
+    }
+
+    try {
+      // Find two different players' units
+      const allUnits = this.scene.gameWorld.getAllUnits();
+      const players = [...new Set(allUnits.map(u => u.owner))];
+      
+      if (players.length < 2) {
+        this.showNotification('Need at least 2 players to simulate battle', 'error');
+        return;
+      }
+      
+      const player1Units = allUnits.filter(u => u.owner === players[0] && u.isAlive());
+      const player2Units = allUnits.filter(u => u.owner === players[1] && u.isAlive());
+      
+      if (player1Units.length === 0 || player2Units.length === 0) {
+        this.showNotification('Both players need living units to simulate battle', 'error');
+        return;
+      }
+      
+      // Move units close to each other and start battle
+      const attacker = player1Units[0];
+      const defender = player2Units[0];
+      
+      // Move attacker next to defender
+      const [defX, defY] = defender.coords;
+      attacker.setPosition(defX + 1, defY);
+      
+      // Start battle
+      console.log(`⚔️ Starting test battle: ${attacker.type} vs ${defender.type}`);
+      const battleStarted = attacker.attackUnit(defender);
+      
+      if (battleStarted) {
+        this.showNotification(`⚔️ Battle started between ${attacker.type} and ${defender.type}!`, 'success');
+      } else {
+        this.showNotification('❌ Failed to start battle', 'error');
+      }
+      
+    } catch (error) {
+      this.showNotification('❌ Battle simulation failed: ' + error.message, 'error');
+      console.error('Battle simulation error:', error);
+    }
+    
+    this.refreshBattleStats();
+  }
+
+  /**
+   * NEW: Show nearest battle interface
+   */
+  showNearestBattle() {
+    if (!this.battleSystemEnabled) {
+      this.showNotification('❌ Battle system not enabled', 'error');
+      return;
+    }
+
+    if (!this.scene.gameWorld.battleManager) {
+      this.showNotification('❌ Battle manager not initialized', 'error');
+      return;
+    }
+
+    const battles = this.scene.gameWorld.battleManager.getActiveBattles();
+    if (battles.length === 0) {
+      this.showNotification('No active battles found', 'info');
+      return;
+    }
+
+    // Show the first active battle
+    const battle = battles[0];
+    if (this.scene.uiManager && this.scene.uiManager.battleInterface) {
+      this.scene.uiManager.showBattleInterface(battle, { showPrediction: true });
+      this.showNotification(`👁️ Showing battle at [${battle.hex.join(', ')}]`, 'success');
+    } else {
+      this.showNotification('❌ Battle interface not available', 'error');
+    }
+  }
+
+  /**
+   * NEW: End all active battles
+   */
+  endAllBattles() {
+    if (!this.battleSystemEnabled) {
+      this.showNotification('❌ Battle system not enabled', 'error');
+      return;
+    }
+
+    if (!this.scene.gameWorld.battleManager) {
+      this.showNotification('❌ Battle manager not initialized', 'error');
+      return;
+    }
+
+    const battles = this.scene.gameWorld.battleManager.getActiveBattles();
+    if (battles.length === 0) {
+      this.showNotification('No active battles to end', 'info');
+      return;
+    }
+
+    // Force end all battles
+    this.scene.gameWorld.endAllBattles();
+    this.showNotification(`🏁 Force-ended ${battles.length} battle(s)`, 'success');
+    
+    this.refreshBattleStats();
+  }
+
+  /**
+   * NEW: Update battle statistics display
+   */
+  updateBattleStats(container) {
+    if (!this.battleSystemEnabled || !this.scene.gameWorld.battleManager) {
+      container.innerHTML = 'Battle system not available';
+      return;
+    }
+
+    const stats = this.scene.gameWorld.getBattleStats();
+    if (!stats) {
+      container.innerHTML = 'No battle statistics available';
+      return;
+    }
+
+    container.innerHTML = `
+      <div>Active Battles: <span style="color: #fbbf24;">${stats.activeBattles}</span></div>
+      <div>Units in Battle: <span style="color: #ef4444;">${stats.unitsInBattle}</span></div>
+      <div>Idle Units: <span style="color: #10b981;">${stats.idleUnits}</span></div>
+      <div>Longest Battle: <span style="color: #8b5cf6;">${stats.longestBattle} ticks</span></div>
+    `;
+
+    if (stats.battleLocations.length > 0) {
+      const locations = stats.battleLocations.map(loc => `[${loc.join(',')}]`).join(', ');
+      container.innerHTML += `<div style="margin-top: 4px; font-size: 10px; color: rgb(156, 163, 175);">Locations: ${locations}</div>`;
+    }
+  }
+
+  /**
+   * NEW: Refresh battle statistics
+   */
+  refreshBattleStats() {
+    const statsDisplay = document.getElementById('battle-stats-display');
+    if (statsDisplay) {
+      this.updateBattleStats(statsDisplay);
+    }
+  }
+
+  /**
+   * NEW: Debug battles to console
+   */
+  debugBattles() {
+    if (!this.battleSystemEnabled) {
+      this.showNotification('❌ Battle system not enabled', 'error');
+      return;
+    }
+
+    if (!this.scene.gameWorld.battleManager) {
+      this.showNotification('❌ Battle manager not initialized', 'error');
+      return;
+    }
+
+    this.scene.gameWorld.battleManager.debugState();
+    this.scene.gameWorld.debugState();
+    
+    const stats = this.scene.gameWorld.getBattleStats();
+    console.log('📊 Detailed Battle Statistics:', stats);
+    
+    this.showNotification('🔍 Battle debug info logged to console', 'info');
+  }
+
+  /**
+   * NEW: Tick method to refresh battle stats periodically
+   */
+  tick() {
+    // Refresh battle stats every 5 ticks to avoid spam
+    if (this.battleSystemEnabled && this.scene.tickCount % 5 === 0) {
+      this.refreshBattleStats();
+    }
+  }
+
+  // ==========================================
+  // SAVE/LOAD SYSTEM INTEGRATION (Preserved exactly)
   // ==========================================
 
   createSaveLoadSection() {
@@ -403,7 +818,7 @@ class AdminPanel extends BaseModal {
   }
 
   // ==========================================
-  // SAVE/LOAD ACTION METHODS
+  // SAVE/LOAD ACTION METHODS (Preserved exactly)
   // ==========================================
 
   switchSaveSystem(system) {
@@ -754,6 +1169,7 @@ class AdminPanel extends BaseModal {
         <div>HP: ${stats.hp}/${stats.maxHp} | ATK: ${stats.attack} | DEF: ${stats.defense} | RNG: ${stats.range}</div>
         <div>Experience: ${stats.experience} | Owner: ${this.controlledUnit.owner.name}</div>
         ${this.controlledUnit.destination ? `<div style="color: #10b981;">Moving to [${this.controlledUnit.destination.q}, ${this.controlledUnit.destination.r}]</div>` : ''}
+        ${stats.isInBattle ? `<div style="color: #ef4444;">⚔️ IN BATTLE at [${stats.battleHex?.join(', ') || 'unknown'}]</div>` : ''}
       `;
       section.appendChild(unitInfo);
 
@@ -800,6 +1216,69 @@ class AdminPanel extends BaseModal {
       });
 
       section.appendChild(controlButtons);
+
+      // NEW: Battle-specific controls (if unit is in battle)
+      if (stats.isInBattle) {
+        const battleControls = document.createElement('div');
+        battleControls.style.cssText = `
+          background: rgba(220, 38, 38, 0.1);
+          padding: 8px;
+          border-radius: 4px;
+          margin-bottom: 8px;
+          border: 1px solid rgba(220, 38, 38, 0.3);
+        `;
+
+        const battleTitle = document.createElement('div');
+        battleTitle.textContent = '⚔️ Battle Controls';
+        battleTitle.style.cssText = 'font-size: 12px; font-weight: bold; margin-bottom: 6px; color: #ef4444;';
+        battleControls.appendChild(battleTitle);
+
+        const battleButtons = document.createElement('div');
+        battleButtons.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 6px;';
+
+        const retreatBtn = document.createElement('button');
+        retreatBtn.textContent = '🏃 Retreat';
+        retreatBtn.style.cssText = `
+          padding: 6px;
+          border: none;
+          border-radius: 3px;
+          background: rgba(239, 68, 68, 0.8);
+          color: white;
+          cursor: pointer;
+          font-size: 10px;
+          font-weight: 500;
+        `;
+        retreatBtn.onclick = () => {
+          if (this.controlledUnit.retreatFromBattle()) {
+            this.showNotification(`🏃 ${this.controlledUnit.type} retreated from battle`, 'success');
+            this.buildInterface();
+          }
+        };
+
+        const viewBattleBtn = document.createElement('button');
+        viewBattleBtn.textContent = '👁️ View Battle';
+        viewBattleBtn.style.cssText = `
+          padding: 6px;
+          border: none;
+          border-radius: 3px;
+          background: rgba(168, 85, 247, 0.8);
+          color: white;
+          cursor: pointer;
+          font-size: 10px;
+          font-weight: 500;
+        `;
+        viewBattleBtn.onclick = () => {
+          const battle = this.controlledUnit.getBattle();
+          if (battle && this.scene.uiManager.battleInterface) {
+            this.scene.uiManager.showBattleInterface(battle, { showPrediction: true });
+          }
+        };
+
+        battleButtons.appendChild(retreatBtn);
+        battleButtons.appendChild(viewBattleBtn);
+        battleControls.appendChild(battleButtons);
+        section.appendChild(battleControls);
+      }
 
       // Quick unit stats modification (god mode)
       const statsSection = document.createElement('div');
@@ -864,9 +1343,13 @@ class AdminPanel extends BaseModal {
     this.addToContent(section);
   }
 
-  // Unit control methods
+  // Unit control methods - Enhanced with battle awareness
   startMoveOrder() {
     if (!this.controlledUnit) return;
+    if (this.controlledUnit.isInBattle && this.controlledUnit.isInBattle()) {
+      this.showNotification('Unit cannot move while in battle. Retreat first!', 'error');
+      return;
+    }
     console.log(`🏃 Click on map to move ${this.controlledUnit.type}`);
     this.orderMode = { type: 'move', unit: this.controlledUnit };
     this.setupOrderListener();
@@ -881,6 +1364,10 @@ class AdminPanel extends BaseModal {
 
   startChaseOrder() {
     if (!this.controlledUnit) return;
+    if (this.controlledUnit.isInBattle && this.controlledUnit.isInBattle()) {
+      this.showNotification('Unit cannot chase while in battle. Retreat first!', 'error');
+      return;
+    }
     console.log(`🎯 Click on enemy unit to chase and attack with ${this.controlledUnit.type}`);
     this.orderMode = { type: 'chase', unit: this.controlledUnit };
     this.setupOrderListener();
@@ -953,14 +1440,22 @@ class AdminPanel extends BaseModal {
       const unit = this.orderMode.unit;
 
       if (this.orderMode.type === 'move') {
-        unit.moveTo([q, r]);
-        console.log(`🏃 ${unit.type} ordered to move to [${q}, ${r}]`);
+        if (unit.moveTo) {
+          unit.moveTo([q, r]);
+          console.log(`🏃 ${unit.type} ordered to move to [${q}, ${r}]`);
+        } else {
+          unit.destination = [q, r];
+          console.log(`🏃 ${unit.type} destination set to [${q}, ${r}]`);
+        }
         
       } else if (this.orderMode.type === 'attack') {
         const target = this.scene.gameWorld.getUnitAt(q, r);
         if (target && target.owner !== unit.owner) {
           const result = unit.attackUnit(target);
           console.log(`⚔️ Attack result:`, result);
+          if (this.battleSystemEnabled) {
+            this.refreshBattleStats(); // Update battle stats after attack
+          }
         } else {
           console.warn('❌ No valid enemy target at that location');
         }
@@ -1001,6 +1496,13 @@ class AdminPanel extends BaseModal {
         return; // Stop chasing
       }
 
+      // Check if chaser is now in battle (can't chase while in battle)
+      if (chaser.isInBattle && chaser.isInBattle()) {
+        console.log(`🎯 ${chaser.type} stopped chasing - now in battle`);
+        chaser.chaseTarget = null;
+        return;
+      }
+
       // Move towards target
       const [chaserQ, chaserR] = chaser.coords;
       const [targetQ, targetR] = target.coords;
@@ -1017,7 +1519,11 @@ class AdminPanel extends BaseModal {
         }
       } else {
         // Move closer
-        chaser.moveTo([targetQ, targetR]);
+        if (chaser.moveTo) {
+          chaser.moveTo([targetQ, targetR]);
+        } else {
+          chaser.destination = [targetQ, targetR];
+        }
         setTimeout(chaseUpdate, 500); // Check every half second
       }
     };
@@ -1031,6 +1537,12 @@ class AdminPanel extends BaseModal {
 
     const battleUpdate = () => {
       if (!unit.autoBattle || !unit.isAlive()) return;
+
+      // Don't auto-battle if unit is already in battle (battle manager handles it)
+      if (unit.isInBattle && unit.isInBattle()) {
+        setTimeout(battleUpdate, 2000); // Check again later
+        return;
+      }
 
       // Find nearest enemy
       const allUnits = this.scene.gameWorld.getAllUnits();
@@ -1052,7 +1564,11 @@ class AdminPanel extends BaseModal {
           unit.attackUnit(closest);
         } else {
           // Move towards closest enemy
-          unit.moveTo(closest.coords);
+          if (unit.moveTo) {
+            unit.moveTo(closest.coords);
+          } else {
+            unit.destination = closest.coords;
+          }
         }
       }
 
@@ -1064,6 +1580,9 @@ class AdminPanel extends BaseModal {
   }
 
   buildInterface() {
+    // Check battle system availability on each build
+    this.checkBattleSystemAvailability();
+    
     this.clearContent();
 
     // God Mode Toggle
@@ -1077,15 +1596,20 @@ class AdminPanel extends BaseModal {
       this.createResourceSection();
     }
     
-    // Save/Load System (only if god mode) - NEW SECTION
+    // Save/Load System (only if god mode) - Preserved
     if (this.godMode) {
       this.createSaveLoadSection();
+    }
+
+    // NEW: Battle System (only if god mode)
+    if (this.godMode) {
+      this.createBattleSection();
     }
     
     // Time Controls
     this.createTimeSection();
     
-    // Entity Spawning (only if god mode)
+    // Entity Spawning (only if god mode) - Enhanced with battle units
     if (this.godMode) {
       this.createSpawningSection();
       this.createUnitControlSection();
@@ -1096,7 +1620,7 @@ class AdminPanel extends BaseModal {
       this.createWorldSection();
     }
     
-    // Debug Information
+    // Debug Information - Enhanced with battle info
     this.createDebugSection();
   }
 
@@ -1186,7 +1710,7 @@ class AdminPanel extends BaseModal {
 
     section.appendChild(playerSelect);
 
-    // Player info
+    // Player info - Enhanced with battle information
     if (this.selectedPlayer) {
       const info = document.createElement('div');
       info.style.cssText = `
@@ -1199,11 +1723,16 @@ class AdminPanel extends BaseModal {
       `;
       
       const resources = this.selectedPlayer.resources;
+      const battlingUnits = this.battleSystemEnabled ? 
+        this.selectedPlayer.units.filter(unit => unit.isInBattle && unit.isInBattle()).length : 0;
+      const idleUnits = this.selectedPlayer.units.length - battlingUnits;
+      
       info.innerHTML = `
         <div style="color: #${this.selectedPlayer.color.toString(16).padStart(6, '0')}; font-weight: bold; margin-bottom: 4px;">
           ${this.selectedPlayer.name}
         </div>
         <div>Buildings: ${this.selectedPlayer.buildings.length} | Units: ${this.selectedPlayer.units.length}</div>
+        ${this.battleSystemEnabled ? `<div>Units: ${idleUnits} idle, ${battlingUnits} battling</div>` : ''}
         <div>Food: ${resources.food} | Wood: ${resources.wood} | Stone: ${resources.stone} | Iron: ${resources.iron}</div>
       `;
       section.appendChild(info);
@@ -1353,41 +1882,42 @@ class AdminPanel extends BaseModal {
     header.style.cssText = 'margin: 0 0 12px 0; color: white; font-size: 16px;';
     section.appendChild(header);
 
-    // Quick spawn buttons
+    // Quick spawn buttons - Enhanced with battle units
     const spawnButtons = document.createElement('div');
-    spawnButtons.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px;';
+    spawnButtons.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;';
 
     const spawnOptions = [
-      { label: 'Worker', action: () => this.spawnUnit('Worker') },
-      { label: 'Builder', action: () => this.spawnUnit('Builder') },
-      { label: 'FootSoldier', action: () => this.spawnUnit('FootSoldier') },
-      { label: 'House', action: () => this.spawnBuilding('House') },
-      { label: 'LumberCamp', action: () => this.spawnBuilding('LumberCamp') },
-      { label: 'Barracks', action: () => this.spawnBuilding('Barracks') }
+      { label: 'Worker', action: () => this.spawnUnit('Worker'), color: 'rgba(59, 130, 246, 0.8)' },
+      { label: 'Warrior', action: () => this.spawnUnit('Warrior'), color: 'rgba(239, 68, 68, 0.8)' },
+      { label: 'Archer', action: () => this.spawnUnit('Archer'), color: 'rgba(34, 197, 94, 0.8)' },
+      { label: 'Scout', action: () => this.spawnUnit('Scout'), color: 'rgba(168, 85, 247, 0.8)' },
+      { label: 'Builder', action: () => this.spawnUnit('Builder'), color: 'rgba(107, 114, 128, 0.8)' },
+      { label: 'FootSoldier', action: () => this.spawnUnit('FootSoldier'), color: 'rgba(220, 38, 38, 0.8)' }
     ];
 
-    spawnOptions.forEach(({ label, action }) => {
+    spawnOptions.forEach(({ label, action, color }) => {
       const btn = document.createElement('button');
-      btn.textContent = label;
+      btn.innerHTML = label;
       btn.style.cssText = `
         padding: 8px;
         border: none;
         border-radius: 4px;
-        background: rgba(168, 85, 247, 0.8);
+        background: ${color};
         color: white;
         cursor: pointer;
-        font-size: 12px;
+        font-size: 11px;
+        font-weight: 500;
         transition: all 0.2s;
       `;
       
       btn.onmouseover = () => {
-        btn.style.background = 'rgba(168, 85, 247, 1)';
-        btn.style.transform = 'scale(1.02)';
+        btn.style.transform = 'scale(1.05)';
+        btn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
       };
       
       btn.onmouseout = () => {
-        btn.style.background = 'rgba(168, 85, 247, 0.8)';
         btn.style.transform = 'scale(1)';
+        btn.style.boxShadow = 'none';
       };
       
       btn.onclick = action;
@@ -1396,11 +1926,74 @@ class AdminPanel extends BaseModal {
 
     section.appendChild(spawnButtons);
 
+    // Building spawn buttons
+    const buildingButtons = document.createElement('div');
+    buildingButtons.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px;';
+
+    const buildingOptions = [
+      { label: 'House', action: () => this.spawnBuilding('House') },
+      { label: 'LumberCamp', action: () => this.spawnBuilding('LumberCamp') },
+      { label: 'Barracks', action: () => this.spawnBuilding('Barracks') },
+      { label: 'Mine', action: () => this.spawnBuilding('Mine') }
+    ];
+
+    buildingOptions.forEach(({ label, action }) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.style.cssText = `
+        padding: 8px;
+        border: none;
+        border-radius: 4px;
+        background: rgba(168, 85, 247, 0.6);
+        color: white;
+        cursor: pointer;
+        font-size: 11px;
+        transition: all 0.2s;
+      `;
+      
+      btn.onmouseover = () => {
+        btn.style.background = 'rgba(168, 85, 247, 0.8)';
+        btn.style.transform = 'scale(1.02)';
+      };
+      
+      btn.onmouseout = () => {
+        btn.style.background = 'rgba(168, 85, 247, 0.6)';
+        btn.style.transform = 'scale(1)';
+      };
+      
+      btn.onclick = action;
+      buildingButtons.appendChild(btn);
+    });
+
+    section.appendChild(buildingButtons);
+
+    // NEW: Army spawning button (if battle system enabled)
+    if (this.battleSystemEnabled) {
+      const armyButton = document.createElement('button');
+      armyButton.innerHTML = '🗡️ Spawn Test Armies';
+      armyButton.style.cssText = `
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 4px;
+        background: rgba(220, 38, 38, 0.8);
+        color: white;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 600;
+        transition: all 0.2s;
+        margin-bottom: 8px;
+      `;
+      armyButton.onclick = () => this.spawnTestArmies();
+      section.appendChild(armyButton);
+    }
+
     // Instructions
     const instructions = document.createElement('div');
-    instructions.textContent = 'Click on the map after selecting spawn type';
+    instructions.textContent = this.battleSystemEnabled ? 
+      'Click buttons then click on map for units, or use Test Armies for instant battle setup' :
+      'Click buttons then click on map to spawn entities';
     instructions.style.cssText = `
-      margin-top: 8px;
       text-align: center;
       color: rgb(156, 163, 175);
       font-size: 11px;
@@ -1495,6 +2088,17 @@ class AdminPanel extends BaseModal {
     const totalBuildings = players.reduce((sum, p) => sum + p.buildings.length, 0);
     const tickCount = this.scene.tickCount || 0;
 
+    // NEW: Battle system debug info
+    let battleInfo = '';
+    if (this.battleSystemEnabled && this.scene.gameWorld.battleManager) {
+      const activeBattles = this.scene.gameWorld.battleManager.getActiveBattles().length;
+      const battlingUnits = this.scene.gameWorld.getBattlingUnits ? this.scene.gameWorld.getBattlingUnits().length : 0;
+      battleInfo = `
+        <div style="color: #ef4444;">Active Battles: ${activeBattles}</div>
+        <div style="color: #f59e0b;">Units in Battle: ${battlingUnits}</div>
+      `;
+    }
+
     debugInfo.innerHTML = `
       <div style="color: #10b981;">Tick: ${tickCount}</div>
       <div>Players: ${players.length}</div>
@@ -1502,13 +2106,15 @@ class AdminPanel extends BaseModal {
       <div>Total Buildings: ${totalBuildings}</div>
       <div style="color: #f59e0b;">Time Speed: ${this.timeMultiplier}x</div>
       <div style="color: ${this.godMode ? '#ef4444' : '#10b981'};">God Mode: ${this.godMode ? 'ON' : 'OFF'}</div>
+      <div style="color: ${this.battleSystemEnabled ? '#10b981' : '#6b7280'};">Battle System: ${this.battleSystemEnabled ? 'ENABLED' : 'DISABLED'}</div>
+      ${battleInfo}
     `;
 
     section.appendChild(debugInfo);
     this.addToContent(section);
   }
 
-  // Action Methods
+  // Action Methods - All preserved with battle awareness
   giveResources(amount) {
     if (!this.selectedPlayer) return;
 
@@ -1624,6 +2230,7 @@ class AdminPanel extends BaseModal {
     }
   }
 
+  
   killAllUnits() {
     if (confirm('Kill all units on the map?')) {
       let totalKilled = 0;
@@ -1696,6 +2303,7 @@ class AdminPanel extends BaseModal {
     console.log('- Container display:', this.container?.style.display);
     console.log('- Container zIndex:', this.container?.style.zIndex);
     console.log('- isVisible flag:', this.isVisible);
+    console.log('- Battle system enabled:', this.battleSystemEnabled);
     
     if (this.container) {
       const rect = this.container.getBoundingClientRect();
@@ -1750,7 +2358,7 @@ class AdminPanel extends BaseModal {
   }
 }
 
-// Debug functions for browser console
+// Debug functions for browser console - Enhanced with battle features
 window.debugAdminPanel = function() {
   const scene = window.game?.scene?.getScene('MainScene');
   const panel = scene?.uiManager?.adminPanel;
@@ -1768,6 +2376,25 @@ window.forceShowAdmin = function() {
   const panel = window.debugAdminPanel();
   if (panel) {
     panel.forceShow();
+  }
+};
+
+// NEW: Battle system debug commands for admin panel
+window.testBattleFromAdmin = function() {
+  const panel = window.debugAdminPanel();
+  if (panel && panel.battleSystemEnabled) {
+    panel.simulateTestBattle();
+  } else {
+    console.log('❌ Battle system not available in admin panel');
+  }
+};
+
+window.spawnArmiesFromAdmin = function() {
+  const panel = window.debugAdminPanel();
+  if (panel && panel.battleSystemEnabled) {
+    panel.spawnTestArmies();
+  } else {
+    console.log('❌ Battle system not available in admin panel');
   }
 };
 
