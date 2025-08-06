@@ -9,11 +9,41 @@ class GameWorld {
     this.scene = scene;
     this.players = [];
     this.tickCount = 0;
+    this.battleManager = null;
+    this.aiManager = null;
+    
+    // Check if battle system is available
+    try {
+      if (typeof BattleManager !== 'undefined') {
+        this.battleManager = new BattleManager(this);
+        console.log('🗡️ Battle system initialized in GameWorld');
+      }
+    } catch (error) {
+      console.warn('⚠️ Battle system not available:', error);
+    }
+    
+    // Initialize AI Manager
+    try {
+      if (typeof AIManager !== 'undefined') {
+        this.aiManager = new AIManager(this);
+        console.log('🧠 AI Manager initialized in GameWorld');
+      }
+    } catch (error) {
+      console.warn('⚠️ AI Manager not available:', error);
+    }
   }
 
   addPlayer(player) {
     player.gameWorld = this; // Ensure back-reference
     this.players.push(player);
+    
+    // Add AI system for non-human players
+    if (this.aiManager && player.name.startsWith('CPU')) {
+      // Default AI types for CPU players
+      const aiTypes = ['balanced', 'economic', 'aggressive', 'peaceful', 'expansionist'];
+      const defaultType = aiTypes[this.players.length % aiTypes.length];
+      this.aiManager.addAISystem(player, defaultType);
+    }
   }
 
   /**
@@ -154,6 +184,16 @@ class GameWorld {
     this.players.forEach(player => {
       player.tick();
     });
+
+    // Update AI systems if available (enhanced with tick-based updates)
+    if (this.aiManager) {
+      this.aiManager.update(Date.now(), this.tickCount);
+    }
+
+    // Update battle system if available
+    if (this.battleManager) {
+      // Battle manager updates are handled elsewhere but could be added here
+    }
 
     // Clean up destroyed entities
     this.cleanup();

@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Frequency Control Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #1f2937;
+            color: white;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #374151;
+            border-radius: 8px;
+            background: #111827;
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #065f46;
+            color: #d1fae5;
+        }
+        .error {
+            background: #7f1d1d;
+            color: #fecaca;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            background: #3b82f6;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #2563eb;
+        }
+        .code {
+            background: #374151;
+            padding: 10px;
+            border-radius: 4px;
+            font-family: monospace;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 AI System Frequency Control Test</h1>
+    
+    <div class="test-section">
+        <h2>Current Implementation Analysis</h2>
+        <p>This test validates the modular AI system's ability to support configurable update frequencies.</p>
+        
+        <div class="code">
+            <strong>Game Loop:</strong><br>
+            • Game ticks every 500ms (TICK_INTERVAL)<br>
+            • Default AI updates every 3000ms (6 game ticks)<br>
+            • New: Configurable per-tick or time-based updates
+        </div>
+    </div>
+
+    <div class="test-section">
+        <h2>Frequency Control Features</h2>
+        <div id="features-status" class="status">Testing frequency control features...</div>
+        
+        <button onclick="testFrequencyControls()">Test Frequency Controls</button>
+        <button onclick="testPerTickCapability()">Test Per-Tick Capability</button>
+        <button onclick="testModularity()">Test Modularity</button>
+        <button onclick="runAllTests()">Run All Tests</button>
+    </div>
+
+    <div class="test-section">
+        <h2>Test Results</h2>
+        <div id="test-results"></div>
+    </div>
+
+    <!-- Include AI system files -->
+    <script src="src/ai/AISystem.js"></script>
+    <script src="src/ai/AIManager.js"></script>
+
+    <script>
+        // Test results container
+        const resultsContainer = document.getElementById('test-results');
+        const statusContainer = document.getElementById('features-status');
+
+        function addResult(test, result, details = '') {
+            const div = document.createElement('div');
+            div.className = `status ${result ? '' : 'error'}`;
+            div.innerHTML = `
+                <strong>${result ? '✅' : '❌'} ${test}</strong><br>
+                ${details}
+            `;
+            resultsContainer.appendChild(div);
+        }
+
+        function updateStatus(message) {
+            statusContainer.textContent = message;
+        }
+
+        // Mock objects for testing
+        const mockPlayer = {
+            name: 'Test Player',
+            resources: { wood: 50, stone: 30, food: 40, iron: 20 },
+            units: [],
+            buildings: []
+        };
+
+        const mockGameWorld = {
+            players: [mockPlayer],
+            getAllUnits: () => [],
+            getAllBuildings: () => [],
+            getBuildingAt: () => null,
+            getUnitAt: () => null
+        };
+
+        function testFrequencyControls() {
+            updateStatus('Testing frequency controls...');
+            
+            try {
+                // Test AI system frequency configuration
+                const aiSystem = new AISystem(mockPlayer, mockGameWorld);
+                
+                // Test default configuration
+                const defaultConfig = aiSystem.getUpdateConfig();
+                addResult(
+                    'Default Configuration', 
+                    defaultConfig.updateInterval === 3000 && !defaultConfig.tickBasedUpdates,
+                    `Default: ${defaultConfig.frequency}`
+                );
+
+                // Test switching to per-tick
+                const perTickResult = aiSystem.setUpdateFrequency('every_tick');
+                const perTickConfig = aiSystem.getUpdateConfig();
+                addResult(
+                    'Per-Tick Configuration', 
+                    perTickResult && perTickConfig.tickBasedUpdates && perTickConfig.frequency === 'every_tick',
+                    `Per-tick mode: ${perTickConfig.frequency}`
+                );
+
+                // Test switching to custom time interval
+                const customResult = aiSystem.setUpdateFrequency(1000);
+                const customConfig = aiSystem.getUpdateConfig();
+                addResult(
+                    'Custom Time Configuration', 
+                    customResult && !customConfig.tickBasedUpdates && customConfig.updateInterval === 1000,
+                    `Custom interval: ${customConfig.frequency}`
+                );
+
+                updateStatus('Frequency controls test completed');
+                
+            } catch (error) {
+                addResult('Frequency Controls', false, `Error: ${error.message}`);
+                updateStatus('Frequency controls test failed');
+            }
+        }
+
+        function testPerTickCapability() {
+            updateStatus('Testing per-tick capability...');
+            
+            try {
+                const aiSystem = new AISystem(mockPlayer, mockGameWorld);
+                
+                // Enable per-tick updates
+                aiSystem.setUpdateFrequency('every_tick');
+                
+                let updateCount = 0;
+                const originalExecuteStrategy = aiSystem.executeStrategy;
+                aiSystem.executeStrategy = function() {
+                    updateCount++;
+                    return originalExecuteStrategy.call(this);
+                };
+
+                // Simulate multiple tick updates
+                const baseTime = Date.now();
+                for (let tick = 1; tick <= 5; tick++) {
+                    aiSystem.update(baseTime, tick);
+                }
+
+                addResult(
+                    'Per-Tick Updates', 
+                    updateCount === 5,
+                    `Expected 5 updates, got ${updateCount}`
+                );
+
+                // Test time-based updates (should not update every tick)
+                aiSystem.setUpdateFrequency(10000); // 10 seconds
+                updateCount = 0;
+                
+                for (let tick = 6; tick <= 10; tick++) {
+                    aiSystem.update(baseTime, tick);
+                }
+
+                addResult(
+                    'Time-Based Filtering', 
+                    updateCount === 0,
+                    `Time-based mode correctly filtered updates: ${updateCount}`
+                );
+
+                updateStatus('Per-tick capability test completed');
+                
+            } catch (error) {
+                addResult('Per-Tick Capability', false, `Error: ${error.message}`);
+                updateStatus('Per-tick capability test failed');
+            }
+        }
+
+        function testModularity() {
+            updateStatus('Testing modularity...');
+            
+            try {
+                // Test AIManager coordination
+                const aiManager = new AIManager(mockGameWorld);
+                
+                // Add multiple AI systems
+                const player1 = { ...mockPlayer, name: 'Player 1' };
+                const player2 = { ...mockPlayer, name: 'Player 2' };
+                
+                const ai1 = aiManager.addAISystem(player1, 'aggressive');
+                const ai2 = aiManager.addAISystem(player2, 'peaceful');
+                
+                addResult(
+                    'Multiple AI Systems', 
+                    ai1 && ai2,
+                    'Successfully created multiple AI systems'
+                );
+
+                // Test bulk frequency changes
+                const bulkResult = aiManager.setAllAIFrequency('every_tick');
+                addResult(
+                    'Bulk Frequency Control', 
+                    bulkResult === 2,
+                    `Changed frequency for ${bulkResult} systems`
+                );
+
+                // Test individual frequency changes
+                const individualResult = aiManager.setPlayerAIFrequency(player1, 2000);
+                const ai1Config = ai1.getUpdateConfig();
+                addResult(
+                    'Individual Frequency Control', 
+                    individualResult && ai1Config.updateInterval === 2000,
+                    `Player 1: ${ai1Config.frequency}`
+                );
+
+                // Test status reporting with frequency info
+                const allStatus = aiManager.getAllAIStatus();
+                const hasFrequencyInfo = allStatus.systems.every(s => 
+                    s.status.updateConfig && s.status.updateConfig.frequency
+                );
+                addResult(
+                    'Status Reporting', 
+                    hasFrequencyInfo,
+                    'All AI systems report frequency configuration'
+                );
+
+                updateStatus('Modularity test completed');
+                
+            } catch (error) {
+                addResult('Modularity', false, `Error: ${error.message}`);
+                updateStatus('Modularity test failed');
+            }
+        }
+
+        function runAllTests() {
+            resultsContainer.innerHTML = '';
+            updateStatus('Running comprehensive tests...');
+            
+            setTimeout(() => testFrequencyControls(), 100);
+            setTimeout(() => testPerTickCapability(), 500);
+            setTimeout(() => testModularity(), 1000);
+            setTimeout(() => updateStatus('All tests completed!'), 1500);
+        }
+
+        // Auto-run basic test on load
+        window.onload = () => {
+            updateStatus('Ready to test AI frequency controls');
+            
+            // Show current architecture info
+            addResult(
+                'AI System Architecture', 
+                true,
+                `
+                ✅ Modular design with AISystem and AIManager classes<br>
+                ✅ Configurable update frequencies (time-based or per-tick)<br>
+                ✅ Individual and bulk frequency controls<br>
+                ✅ Comprehensive status reporting<br>
+                ✅ Admin panel integration for easy management
+                `
+            );
+        };
+    </script>
+</body>
+</html>

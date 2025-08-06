@@ -45,6 +45,9 @@ class AdminPanel extends BaseModal {
     // NEW: Check if battle system is available
     this.checkBattleSystemAvailability();
     
+    // NEW: Check if AI system is available  
+    this.checkAISystemAvailability();
+    
     this.buildInterface();
     this.setupHotkeys();
     
@@ -76,6 +79,15 @@ class AdminPanel extends BaseModal {
       BattleManager: typeof BattleManager !== 'undefined',
       enabled: this.battleSystemEnabled
     });
+  }
+
+  // NEW: Check if AI system components are available
+  checkAISystemAvailability() {
+    this.aiSystemEnabled = !!(
+      this.scene.gameWorld && 
+      this.scene.gameWorld.aiManager &&
+      typeof AIManager !== 'undefined'
+    );
   }
 
   show() {
@@ -482,12 +494,17 @@ class AdminPanel extends BaseModal {
   }
 
   /**
-   * NEW: Tick method to refresh battle stats periodically
+   * NEW: Tick method to refresh battle and AI stats periodically
    */
   tick() {
     // Refresh battle stats every 5 ticks to avoid spam
     if (this.battleSystemEnabled && this.scene.tickCount % 5 === 0) {
       this.refreshBattleStats();
+    }
+    
+    // Refresh AI stats every 10 ticks to avoid spam
+    if (this.aiSystemEnabled && this.scene.tickCount % 10 === 0) {
+      this.refreshAIStats();
     }
   }
 
@@ -1105,6 +1122,496 @@ class AdminPanel extends BaseModal {
   }
 
   // ==========================================
+  // AI SYSTEM INTEGRATION (NEW)
+  // ==========================================
+
+  /**
+   * NEW: Create AI system management section
+   */
+  createAISection() {
+    if (!this.godMode) return;
+
+    const section = document.createElement('div');
+    section.style.cssText = `
+      padding: 12px;
+      border-bottom: 1px solid rgb(75, 85, 99);
+      background: rgba(168, 85, 247, 0.1);
+    `;
+
+    const header = document.createElement('h3');
+    header.textContent = '🧠 AI System Management';
+    header.style.cssText = 'margin: 0 0 12px 0; color: white; font-size: 16px;';
+    section.appendChild(header);
+
+    // AI availability status
+    const statusIndicator = document.createElement('div');
+    statusIndicator.style.cssText = `
+      background: ${this.aiSystemEnabled ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)'};
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      text-align: center;
+      font-size: 12px;
+      border: 1px solid ${this.aiSystemEnabled ? '#22c55e' : '#ef4444'};
+    `;
+    statusIndicator.innerHTML = `
+      <div style="color: ${this.aiSystemEnabled ? '#22c55e' : '#ef4444'}; font-weight: bold;">
+        ${this.aiSystemEnabled ? '✅ AI System Active' : '❌ AI System Disabled'}
+      </div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 4px;">
+        ${this.aiSystemEnabled ? 
+          'All AI features available' : 
+          'Add AI system files to enable'
+        }
+      </div>
+    `;
+    section.appendChild(statusIndicator);
+
+    if (this.aiSystemEnabled) {
+      // Global AI controls
+      const globalControls = document.createElement('div');
+      globalControls.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;';
+
+      const globalOptions = [
+        { label: '🟢 Enable All AI', action: () => this.enableAllAI(), color: 'rgba(34, 197, 94, 0.8)' },
+        { label: '🔴 Disable All AI', action: () => this.disableAllAI(), color: 'rgba(239, 68, 68, 0.8)' },
+        { label: '🔧 Debug Mode', action: () => this.toggleAIDebugMode(), color: 'rgba(107, 114, 128, 0.8)' },
+        { label: '📊 AI Status', action: () => this.showAIStatus(), color: 'rgba(59, 130, 246, 0.8)' },
+        { label: '⚡ Per-Tick AI', action: () => this.enablePerTickAI(), color: 'rgba(236, 72, 153, 0.8)' },
+        { label: '⏰ Normal Speed', action: () => this.setNormalAISpeed(), color: 'rgba(168, 85, 247, 0.8)' }
+      ];
+
+      globalOptions.forEach(({ label, action, color }) => {
+        const btn = document.createElement('button');
+        btn.innerHTML = label;
+        btn.style.cssText = `
+          padding: 8px;
+          border: none;
+          border-radius: 4px;
+          background: ${color};
+          color: white;
+          cursor: pointer;
+          font-size: 11px;
+          font-weight: 500;
+          transition: all 0.2s;
+        `;
+        
+        btn.onmouseover = () => {
+          btn.style.transform = 'scale(1.05)';
+          btn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+        };
+        
+        btn.onmouseout = () => {
+          btn.style.transform = 'scale(1)';
+          btn.style.boxShadow = 'none';
+        };
+        
+        btn.onclick = action;
+        globalControls.appendChild(btn);
+      });
+
+      section.appendChild(globalControls);
+
+      // Player-specific AI controls
+      this.createPlayerAIControls(section);
+
+      // AI performance statistics
+      this.createAIStatsDisplay(section);
+
+      // Strategy management
+      this.createStrategyControls(section);
+
+    } else {
+      // AI system disabled message
+      const disabledMessage = document.createElement('div');
+      disabledMessage.style.cssText = `
+        text-align: center;
+        color: rgb(156, 163, 175);
+        font-size: 12px;
+        font-style: italic;
+        padding: 16px;
+      `;
+      disabledMessage.textContent = 'Add AI system files to enable advanced player automation';
+      section.appendChild(disabledMessage);
+    }
+
+    this.addToContent(section);
+  }
+
+  /**
+   * Create player-specific AI controls
+   */
+  createPlayerAIControls(parentSection) {
+    const playersContainer = document.createElement('div');
+    playersContainer.style.cssText = `
+      background: rgba(31, 41, 55, 0.5);
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 12px;
+    `;
+
+    const playersTitle = document.createElement('div');
+    playersTitle.textContent = '👥 Player AI Controls';
+    playersTitle.style.cssText = 'font-size: 12px; font-weight: bold; color: rgb(156, 163, 175); margin-bottom: 8px;';
+    playersContainer.appendChild(playersTitle);
+
+    const players = this.scene.gameWorld.players || [];
+    
+    players.forEach(player => {
+      const playerControl = document.createElement('div');
+      playerControl.style.cssText = `
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 6px;
+        padding: 4px;
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 3px;
+      `;
+
+      // Player info
+      const playerInfo = document.createElement('div');
+      playerInfo.style.cssText = `
+        color: #${player.color.toString(16).padStart(6, '0')};
+        font-size: 11px;
+        font-weight: bold;
+        flex: 1;
+      `;
+      
+      const aiSystem = this.scene.gameWorld.aiManager?.getAISystem(player);
+      const aiEnabled = aiSystem?.enabled || false;
+      const aiType = aiSystem?.aiType || 'none';
+      
+      playerInfo.innerHTML = `
+        ${player.name}<br>
+        <span style="font-size: 9px; color: rgb(156, 163, 175);">
+          AI: ${aiEnabled ? aiType : 'disabled'}
+        </span>
+      `;
+      playerControl.appendChild(playerInfo);
+
+      // Strategy selector
+      const strategySelect = document.createElement('select');
+      strategySelect.style.cssText = `
+        margin-right: 4px;
+        padding: 2px;
+        background: rgba(31, 41, 55, 0.9);
+        border: 1px solid rgb(75, 85, 99);
+        border-radius: 3px;
+        color: white;
+        font-size: 9px;
+      `;
+
+      const strategies = ['peaceful', 'aggressive', 'balanced', 'economic', 'expansionist'];
+      strategies.forEach(strategy => {
+        const option = document.createElement('option');
+        option.value = strategy;
+        option.textContent = strategy;
+        option.selected = strategy === aiType;
+        option.style.background = 'rgb(31, 41, 55)';
+        strategySelect.appendChild(option);
+      });
+
+      strategySelect.onchange = (e) => {
+        this.changePlayerAIStrategy(player, e.target.value);
+      };
+      playerControl.appendChild(strategySelect);
+
+      // Enable/Disable toggle
+      const toggleBtn = document.createElement('button');
+      toggleBtn.textContent = aiEnabled ? 'ON' : 'OFF';
+      toggleBtn.style.cssText = `
+        padding: 2px 8px;
+        border: none;
+        border-radius: 3px;
+        background: ${aiEnabled ? '#22c55e' : '#6b7280'};
+        color: white;
+        cursor: pointer;
+        font-size: 9px;
+        font-weight: bold;
+        transition: all 0.2s;
+        min-width: 30px;
+      `;
+      toggleBtn.onclick = () => this.togglePlayerAI(player, toggleBtn);
+      playerControl.appendChild(toggleBtn);
+
+      // Frequency control
+      const freqBtn = document.createElement('button');
+      const aiSystem = this.scene.gameWorld.aiManager.getAISystem(player);
+      const currentFreq = aiSystem ? aiSystem.getUpdateConfig().frequency : '3000ms';
+      const isPerTick = currentFreq === 'every_tick';
+      
+      freqBtn.textContent = isPerTick ? '⚡' : '⏰';
+      freqBtn.title = isPerTick ? 'Per-tick updates' : `Time-based: ${currentFreq}`;
+      freqBtn.style.cssText = `
+        padding: 2px 6px;
+        border: none;
+        border-radius: 3px;
+        background: ${isPerTick ? '#ec4899' : '#8b5cf6'};
+        color: white;
+        cursor: pointer;
+        font-size: 9px;
+        margin-left: 2px;
+        min-width: 20px;
+      `;
+      freqBtn.onclick = () => this.togglePlayerAIFrequency(player, freqBtn);
+      playerControl.appendChild(freqBtn);
+
+      playersContainer.appendChild(playerControl);
+    });
+
+    parentSection.appendChild(playersContainer);
+  }
+
+  /**
+   * Create AI statistics display
+   */
+  createAIStatsDisplay(parentSection) {
+    const statsContainer = document.createElement('div');
+    statsContainer.style.cssText = `
+      background: rgba(31, 41, 55, 0.5);
+      border-radius: 4px;
+      padding: 8px;
+      margin-bottom: 8px;
+    `;
+
+    const statsTitle = document.createElement('div');
+    statsTitle.textContent = '📈 AI Performance Metrics';
+    statsTitle.style.cssText = 'font-size: 12px; font-weight: bold; color: rgb(156, 163, 175); margin-bottom: 6px;';
+    statsContainer.appendChild(statsTitle);
+
+    const statsDisplay = document.createElement('div');
+    statsDisplay.id = 'ai-stats-display';
+    statsDisplay.style.cssText = 'font-size: 11px; color: rgb(209, 213, 219);';
+    this.updateAIStats(statsDisplay);
+    statsContainer.appendChild(statsDisplay);
+
+    parentSection.appendChild(statsContainer);
+  }
+
+  /**
+   * Create strategy management controls
+   */
+  createStrategyControls(parentSection) {
+    const strategyContainer = document.createElement('div');
+    strategyContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 6px;';
+
+    const strategyActions = [
+      { label: '⚡ Force Action', action: () => this.forceAIAction() },
+      { label: '🔄 Refresh Stats', action: () => this.refreshAIStats() }
+    ];
+
+    strategyActions.forEach(({ label, action }) => {
+      const btn = document.createElement('button');
+      btn.innerHTML = label;
+      btn.style.cssText = `
+        padding: 6px;
+        border: none;
+        border-radius: 3px;
+        background: rgba(75, 85, 99, 0.8);
+        color: white;
+        cursor: pointer;
+        font-size: 10px;
+      `;
+      btn.onclick = action;
+      strategyContainer.appendChild(btn);
+    });
+
+    parentSection.appendChild(strategyContainer);
+  }
+
+  /**
+   * AI action methods
+   */
+  enableAllAI() {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    const count = this.scene.gameWorld.aiManager.setAllAIEnabled(true);
+    this.showNotification(`🟢 Enabled AI for ${count} players`, 'success');
+    this.buildInterface();
+  }
+
+  disableAllAI() {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    const count = this.scene.gameWorld.aiManager.setAllAIEnabled(false);
+    this.showNotification(`🔴 Disabled AI for ${count} players`, 'info');
+    this.buildInterface();
+  }
+
+  enablePerTickAI() {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    const count = this.scene.gameWorld.aiManager.setAllAIFrequency('every_tick');
+    this.showNotification(`⚡ Enabled per-tick updates for ${count} AI systems`, 'info');
+  }
+
+  setNormalAISpeed() {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    const count = this.scene.gameWorld.aiManager.setAllAIFrequency(3000); // 3 second default
+    this.showNotification(`⏰ Set normal update speed (3s) for ${count} AI systems`, 'info');
+  }
+
+  toggleAIDebugMode() {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    // Toggle debug mode state
+    this.aiDebugMode = !this.aiDebugMode;
+    const count = this.scene.gameWorld.aiManager.setGlobalDebugMode(this.aiDebugMode);
+    this.showNotification(`🔧 ${this.aiDebugMode ? 'Enabled' : 'Disabled'} debug mode for ${count} AI systems`, 'info');
+  }
+
+  showAIStatus() {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    this.scene.gameWorld.aiManager.debugAllSystems();
+    this.showNotification('📊 AI status logged to console', 'info');
+    this.refreshAIStats();
+  }
+
+  togglePlayerAIFrequency(player, button) {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    const aiSystem = this.scene.gameWorld.aiManager.getAISystem(player);
+    if (!aiSystem) {
+      this.showNotification(`❌ No AI system for ${player.name}`, 'error');
+      return;
+    }
+
+    const currentConfig = aiSystem.getUpdateConfig();
+    const newFrequency = currentConfig.tickBasedUpdates ? 3000 : 'every_tick';
+    
+    if (this.scene.gameWorld.aiManager.setPlayerAIFrequency(player, newFrequency)) {
+      const isPerTick = newFrequency === 'every_tick';
+      button.textContent = isPerTick ? '⚡' : '⏰';
+      button.title = isPerTick ? 'Per-tick updates' : `Time-based: ${newFrequency}ms`;
+      button.style.background = isPerTick ? '#ec4899' : '#8b5cf6';
+      
+      this.showNotification(
+        `🔄 ${player.name}: ${isPerTick ? 'Per-tick' : 'Time-based'} AI updates`, 
+        'info'
+      );
+    }
+  }
+
+  changePlayerAIStrategy(player, strategy) {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    if (this.scene.gameWorld.aiManager.setPlayerAIType(player, strategy)) {
+      this.showNotification(`🔄 Changed ${player.name} to ${strategy} strategy`, 'success');
+      this.buildInterface();
+    } else {
+      this.showNotification(`❌ Failed to change ${player.name} strategy`, 'error');
+    }
+  }
+
+  togglePlayerAI(player, buttonElement) {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    const aiSystem = this.scene.gameWorld.aiManager.getAISystem(player);
+    const newState = !aiSystem?.enabled;
+    
+    if (this.scene.gameWorld.aiManager.setPlayerAIEnabled(player, newState)) {
+      buttonElement.textContent = newState ? 'ON' : 'OFF';
+      buttonElement.style.background = newState ? '#22c55e' : '#6b7280';
+      this.showNotification(`${newState ? '🟢' : '🔴'} ${player.name} AI ${newState ? 'enabled' : 'disabled'}`, 'success');
+      this.buildInterface();
+    } else {
+      this.showNotification(`❌ Failed to toggle ${player.name} AI`, 'error');
+    }
+  }
+
+  forceAIAction() {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      this.showNotification('❌ AI system not available', 'error');
+      return;
+    }
+
+    // Show a simple prompt for action type
+    const action = prompt('Enter AI action to force:\n\nAvailable actions:\n- ensure_survival\n- manage_economy\n- build_military\n- expand_territory\n- conduct_warfare\n- optimize_resources', 'ensure_survival');
+    
+    if (action) {
+      const results = this.scene.gameWorld.aiManager.forceActionOnAll(action);
+      const successCount = results.filter(r => r.success).length;
+      this.showNotification(`⚡ Forced ${action} on ${successCount}/${results.length} AI systems`, 'info');
+      console.log('Force action results:', results);
+    }
+  }
+
+  updateAIStats(container) {
+    if (!this.aiSystemEnabled || !this.scene.gameWorld.aiManager) {
+      container.innerHTML = 'AI system not available';
+      return;
+    }
+
+    const allStatus = this.scene.gameWorld.aiManager.getAllAIStatus();
+    if (!allStatus) {
+      container.innerHTML = 'No AI statistics available';
+      return;
+    }
+
+    const stats = allStatus.globalStats;
+    const activeSystems = allStatus.systems.filter(s => s.status.enabled);
+
+    container.innerHTML = `
+      <div>AI Systems: <span style="color: #10b981;">${stats.totalAISystems}</span></div>
+      <div>Active: <span style="color: #22c55e;">${stats.activeAISystems}</span></div>
+      <div>Total Decisions: <span style="color: #3b82f6;">${stats.totalDecisions}</span></div>
+      <div>Current Tasks: <span style="color: #f59e0b;">${activeSystems.reduce((sum, s) => sum + s.status.currentTasks.length, 0)}</span></div>
+      <div>Avg Performance: <span style="color: #8b5cf6;">${stats.averagePerformance.toFixed(1)}</span></div>
+    `;
+
+    // Show strategy distribution
+    const strategies = {};
+    activeSystems.forEach(s => {
+      const strategy = s.status.aiType;
+      strategies[strategy] = (strategies[strategy] || 0) + 1;
+    });
+
+    if (Object.keys(strategies).length > 0) {
+      const strategyText = Object.entries(strategies)
+        .map(([strategy, count]) => `${strategy}:${count}`)
+        .join(', ');
+      container.innerHTML += `<div style="margin-top: 4px; font-size: 10px; color: rgb(156, 163, 175);">Strategies: ${strategyText}</div>`;
+    }
+  }
+
+  refreshAIStats() {
+    const statsDisplay = document.getElementById('ai-stats-display');
+    if (statsDisplay) {
+      this.updateAIStats(statsDisplay);
+    }
+  }
+
+  // ==========================================
   // EXISTING METHODS (keeping all existing functionality)
   // ==========================================
 
@@ -1601,6 +2108,8 @@ class AdminPanel extends BaseModal {
   buildInterface() {
     // Check battle system availability on each build
     this.checkBattleSystemAvailability();
+    // Check AI system availability on each build 
+    this.checkAISystemAvailability();
     
     this.clearContent();
 
@@ -1618,6 +2127,11 @@ class AdminPanel extends BaseModal {
     // Save/Load System (only if god mode) - Preserved
     if (this.godMode) {
       this.createSaveLoadSection();
+    }
+
+    // NEW: AI System (only if god mode)
+    if (this.godMode) {
+      this.createAISection();
     }
 
     // NEW: Battle System (only if god mode)
