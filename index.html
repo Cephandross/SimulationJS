@@ -22,8 +22,6 @@
   <!-- 5) Hex map system (needs Building class) -->
   <script src="src/HexMap.js"></script>
 
-  <script src="src/GameWorld.js"></script>
-
   <!-- 6) Player logic -->
   <script src="src/player.js"></script>
 
@@ -49,6 +47,9 @@
   <!-- 10) AI System (optional - loads gracefully) -->
   <script src="src/ai/AISystem.js" onerror="console.warn('AI system not available')"></script>
   <script src="src/ai/AIManager.js" onerror="console.warn('AI manager not available')"></script>
+
+  <!-- 10b) GameWorld (needs to load AFTER battle and AI systems) -->
+  <script src="src/GameWorld.js"></script>
 
   <!-- 11) UI Components - ORDER MATTERS -->
   <script src="src/ui/BaseModal.js"></script>
