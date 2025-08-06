@@ -86,3 +86,6 @@ class HeavyCavalry extends Cavalry {
   }
 }
 window.HeavyCavalry = HeavyCavalry;
+
+// Legacy alias for AdminPanel compatibility
+window.Archer = MountedArcher;  // Archer -> MountedArcher

@@ -192,7 +192,7 @@ class GameWorld {
 
     // Update battle system if available
     if (this.battleManager) {
-      // Battle manager updates are handled elsewhere but could be added here
+      this.battleManager.tick();
     }
 
     // Clean up destroyed entities
@@ -222,6 +222,71 @@ class GameWorld {
       console.log(`  Resources:`, player.resources);
     });
     console.log(`Total entities: ${this.getAllUnits().length} units, ${this.getAllBuildings().length} buildings`);
+  }
+
+  /**
+   * Get battle statistics for admin panel
+   */
+  getBattleStats() {
+    if (!this.battleManager) {
+      return {
+        activeBattles: 0,
+        unitsInBattle: 0,
+        idleUnits: this.getAllUnits().filter(u => u.isAlive()).length,
+        longestBattle: 0,
+        battleLocations: []
+      };
+    }
+
+    const battles = this.battleManager.getActiveBattles();
+    const unitsInBattle = battles.reduce((total, battle) => 
+      total + battle.attackers.length + battle.defenders.length, 0);
+    const longestBattle = battles.reduce((max, battle) => 
+      Math.max(max, this.tickCount - battle.startTick), 0);
+
+    return {
+      activeBattles: battles.length,
+      unitsInBattle: unitsInBattle,
+      idleUnits: this.getAllUnits().filter(u => u.isAlive()).length - unitsInBattle,
+      longestBattle: longestBattle,
+      battleLocations: battles.map(battle => battle.hex)
+    };
+  }
+
+  /**
+   * End all battles forcefully
+   */
+  endAllBattles() {
+    if (!this.battleManager) return;
+
+    const battles = this.battleManager.getActiveBattles();
+    battles.forEach(battle => {
+      this.battleManager.endBattle(battle);
+    });
+  }
+
+  /**
+   * Get nearest battle to specified coordinates
+   */
+  getNearestBattle(q, r) {
+    if (!this.battleManager) return null;
+
+    const battles = this.battleManager.getActiveBattles();
+    if (battles.length === 0) return null;
+
+    let nearest = null;
+    let nearestDistance = Infinity;
+
+    battles.forEach(battle => {
+      const [battleQ, battleR] = battle.hex;
+      const distance = this.hexDistance(q, r, battleQ, battleR);
+      if (distance < nearestDistance) {
+        nearestDistance = distance;
+        nearest = battle;
+      }
+    });
+
+    return nearest;
   }
 }
 

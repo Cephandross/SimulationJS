@@ -301,14 +301,14 @@ class AdminPanel extends BaseModal {
     try {
       // Player 1 army (Red)
       for (let i = 0; i < 3; i++) {
-        if (typeof Warrior !== 'undefined' && player1.spawnUnit(Warrior, [army1Pos[0], army1Pos[1] + i])) totalSpawned++;
-        if (typeof Archer !== 'undefined' && player1.spawnUnit(Archer, [army1Pos[0] - 1, army1Pos[1] + i])) totalSpawned++;
+        if (typeof FootSoldier !== 'undefined' && player1.spawnUnit(FootSoldier, [army1Pos[0], army1Pos[1] + i])) totalSpawned++;
+        if (typeof MountedArcher !== 'undefined' && player1.spawnUnit(MountedArcher, [army1Pos[0] - 1, army1Pos[1] + i])) totalSpawned++;
       }
 
       // Player 2 army (Blue)  
       for (let i = 0; i < 3; i++) {
-        if (typeof Warrior !== 'undefined' && player2.spawnUnit(Warrior, [army2Pos[0], army2Pos[1] + i])) totalSpawned++;
-        if (typeof Archer !== 'undefined' && player2.spawnUnit(Archer, [army2Pos[0] + 1, army2Pos[1] + i])) totalSpawned++;
+        if (typeof FootSoldier !== 'undefined' && player2.spawnUnit(FootSoldier, [army2Pos[0], army2Pos[1] + i])) totalSpawned++;
+        if (typeof MountedArcher !== 'undefined' && player2.spawnUnit(MountedArcher, [army2Pos[0] + 1, army2Pos[1] + i])) totalSpawned++;
       }
 
       this.showNotification(`🗡️ Test armies spawned! ${totalSpawned} units created`, 'success');

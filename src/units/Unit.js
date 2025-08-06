@@ -105,9 +105,15 @@ class Unit {
   }
 
   createSprite() {
-    const [x, y] = hexToPixel(this.coords[0], this.coords[1]);
-    
+    // Skip sprite creation if no scene or missing dependencies
+    if (!this.scene || typeof hexToPixel === 'undefined') {
+      console.log(`⏭️ Skipping sprite creation for ${this.type} - scene/dependencies not available`);
+      return;
+    }
+
     try {
+      const [x, y] = hexToPixel(this.coords[0], this.coords[1]);
+      
       this.sprite = this.scene.add.sprite(x, y, this.spriteKey, this.spriteFrame)
         .setOrigin(0.5, 0.5)
         .setDepth(3);
@@ -119,9 +125,12 @@ class Unit {
       console.log(`✅ Created ${this.type} sprite at [${this.coords[0]}, ${this.coords[1]}]`);
     } catch (error) {
       console.warn(`Failed to create ${this.type} sprite:`, error);
-      // Fallback to colored circle
-      this.sprite = this.scene.add.circle(x, y, 15, this.owner.color)
-        .setDepth(3);
+      // Try fallback if hexToPixel is available
+      if (typeof hexToPixel !== 'undefined') {
+        const [x, y] = hexToPixel(this.coords[0], this.coords[1]);
+        this.sprite = this.scene.add.circle(x, y, 15, this.owner.color)
+          .setDepth(3);
+      }
     }
   }
 
