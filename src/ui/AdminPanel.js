@@ -287,8 +287,8 @@ class AdminPanel extends BaseModal {
     // Clear existing units
     let totalCleared = 0;
     [player1, player2].forEach(player => {
-      player.units.forEach(unit => unit.destroy());
       totalCleared += player.units.length;
+      player.units.forEach(unit => unit.destroy());
       player.units = [];
     });
 
@@ -299,16 +299,64 @@ class AdminPanel extends BaseModal {
     let totalSpawned = 0;
 
     try {
+      console.log('🗡️ Starting army spawn...');
+      console.log('FootSoldier available:', typeof FootSoldier !== 'undefined');
+      console.log('MountedArcher available:', typeof MountedArcher !== 'undefined');
+      
       // Player 1 army (Red)
       for (let i = 0; i < 3; i++) {
-        if (typeof Warrior !== 'undefined' && player1.spawnUnit(Warrior, [army1Pos[0], army1Pos[1] + i])) totalSpawned++;
-        if (typeof Archer !== 'undefined' && player1.spawnUnit(Archer, [army1Pos[0] - 1, army1Pos[1] + i])) totalSpawned++;
+        const pos1 = [army1Pos[0], army1Pos[1] + i];
+        const pos2 = [army1Pos[0] - 1, army1Pos[1] + i];
+        
+        console.log(`Attempting to spawn FootSoldier for Player1 at [${pos1[0]}, ${pos1[1]}]`);
+        if (typeof FootSoldier !== 'undefined') {
+          const unit = player1.spawnUnit(FootSoldier, pos1);
+          if (unit) {
+            totalSpawned++;
+            console.log(`✓ Spawned FootSoldier at [${pos1[0]}, ${pos1[1]}]`);
+          } else {
+            console.log(`✗ Failed to spawn FootSoldier at [${pos1[0]}, ${pos1[1]}]`);
+          }
+        }
+        
+        console.log(`Attempting to spawn MountedArcher for Player1 at [${pos2[0]}, ${pos2[1]}]`);
+        if (typeof MountedArcher !== 'undefined') {
+          const unit = player1.spawnUnit(MountedArcher, pos2);
+          if (unit) {
+            totalSpawned++;
+            console.log(`✓ Spawned MountedArcher at [${pos2[0]}, ${pos2[1]}]`);
+          } else {
+            console.log(`✗ Failed to spawn MountedArcher at [${pos2[0]}, ${pos2[1]}]`);
+          }
+        }
       }
 
       // Player 2 army (Blue)  
       for (let i = 0; i < 3; i++) {
-        if (typeof Warrior !== 'undefined' && player2.spawnUnit(Warrior, [army2Pos[0], army2Pos[1] + i])) totalSpawned++;
-        if (typeof Archer !== 'undefined' && player2.spawnUnit(Archer, [army2Pos[0] + 1, army2Pos[1] + i])) totalSpawned++;
+        const pos1 = [army2Pos[0], army2Pos[1] + i];
+        const pos2 = [army2Pos[0] + 1, army2Pos[1] + i];
+        
+        console.log(`Attempting to spawn FootSoldier for Player2 at [${pos1[0]}, ${pos1[1]}]`);
+        if (typeof FootSoldier !== 'undefined') {
+          const unit = player2.spawnUnit(FootSoldier, pos1);
+          if (unit) {
+            totalSpawned++;
+            console.log(`✓ Spawned FootSoldier at [${pos1[0]}, ${pos1[1]}]`);
+          } else {
+            console.log(`✗ Failed to spawn FootSoldier at [${pos1[0]}, ${pos1[1]}]`);
+          }
+        }
+        
+        console.log(`Attempting to spawn MountedArcher for Player2 at [${pos2[0]}, ${pos2[1]}]`);
+        if (typeof MountedArcher !== 'undefined') {
+          const unit = player2.spawnUnit(MountedArcher, pos2);
+          if (unit) {
+            totalSpawned++;
+            console.log(`✓ Spawned MountedArcher at [${pos2[0]}, ${pos2[1]}]`);
+          } else {
+            console.log(`✗ Failed to spawn MountedArcher at [${pos2[0]}, ${pos2[1]}]`);
+          }
+        }
       }
 
       this.showNotification(`🗡️ Test armies spawned! ${totalSpawned} units created`, 'success');

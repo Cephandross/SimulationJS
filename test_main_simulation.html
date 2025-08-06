@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Main App Simulation Test</title>
+  <style>
+    body { 
+      font-family: monospace; 
+      margin: 20px; 
+      background: #1a202c; 
+      color: #f7fafc; 
+    }
+    .log { 
+      margin: 5px 0; 
+      padding: 5px; 
+      border-radius: 3px; 
+    }
+    .success { background: rgba(34, 197, 94, 0.2); }
+    .error { background: rgba(239, 68, 68, 0.2); }
+    .info { background: rgba(59, 130, 246, 0.2); }
+    .warning { background: rgba(245, 158, 11, 0.2); }
+    pre { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; margin: 10px 0; }
+  </style>
+</head>
+<body>
+  <h1>🔍 Main App Initialization Simulation</h1>
+  <div id="output"></div>
+
+  <!-- Load in exact same order as main app -->
+  <script src="src/config.js" onerror="log('❌ Failed to load config.js', 'error')"></script>
+  <script src="src/utils.js" onerror="log('❌ Failed to load utils.js', 'error')"></script>
+  <script src="src/buildings/Building.js" onerror="log('❌ Failed to load Building.js', 'error')"></script>
+  <script src="src/units/Unit.js" onerror="log('❌ Failed to load Unit.js', 'error')"></script>
+  <script src="src/HexMap.js" onerror="log('❌ Failed to load HexMap.js', 'error')"></script>
+  <script src="src/GameWorld.js" onerror="log('❌ Failed to load GameWorld.js', 'error')"></script>
+  <script src="src/player.js" onerror="log('❌ Failed to load player.js', 'error')"></script>
+
+  <!-- Battle System -->
+  <script src="src/battle/BattleData.js" onerror="log('⚠️ Battle system not available - BattleData', 'warning')"></script>
+  <script src="src/battle/BattleResolver.js" onerror="log('⚠️ Battle system not available - BattleResolver', 'warning')"></script>
+  <script src="src/battle/BattleManager.js" onerror="log('⚠️ Battle system not available - BattleManager', 'warning')"></script>
+  <script src="src/ui/BattleInterface.js" onerror="log('⚠️ Battle interface not available', 'warning')"></script>
+
+  <!-- UI Components -->
+  <script src="src/ui/BaseModal.js" onerror="log('⚠️ BaseModal not available', 'warning')"></script>
+  <script src="src/ui/AdminPanel.js" onerror="log('❌ Failed to load AdminPanel.js', 'error')"></script>
+
+  <script>
+    const output = document.getElementById('output');
+    
+    function log(message, type = 'info') {
+      const div = document.createElement('div');
+      div.className = `log ${type}`;
+      div.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+      output.appendChild(div);
+      console.log(message);
+    }
+
+    function step(stepNum, description) {
+      log(`<strong>Step ${stepNum}: ${description}</strong>`, 'info');
+    }
+
+    // Simulate the initialization sequence exactly as in main.js
+    window.onload = function() {
+      step(1, 'Starting main app simulation');
+      
+      try {
+        // Check class availability
+        step(2, 'Checking class availability');
+        const classes = {
+          'BattleData': typeof BattleData !== 'undefined',
+          'BattleResolver': typeof BattleResolver !== 'undefined', 
+          'BattleManager': typeof BattleManager !== 'undefined',
+          'GameWorld': typeof GameWorld !== 'undefined',
+          'Player': typeof Player !== 'undefined'
+        };
+        
+        log(`<pre>Classes available: ${JSON.stringify(classes, null, 2)}</pre>`);
+        
+        step(3, 'Creating mock scene (like MainScene)');
+        const mockScene = {
+          players: [],
+          cameras: { main: { setBounds: () => {}, centerOn: () => {} } },
+          scene: { launch: () => {} },
+          registry: { set: () => {} }
+        };
+        
+        step(4, 'Creating GameWorld (this is where battleManager should be created)');
+        const gameWorld = new GameWorld(mockScene);
+        
+        // Log the GameWorld state
+        log(`GameWorld created: ${!!gameWorld}`, 'success');
+        log(`GameWorld.battleManager exists: ${!!gameWorld.battleManager}`, 
+            gameWorld.battleManager ? 'success' : 'error');
+        
+        step(5, 'Simulating AdminPanel creation (this is where the issue shows up)');
+        
+        // Mock AdminPanel constructor sequence
+        const mockAdminPanel = {
+          scene: mockScene,
+          battleSystemEnabled: false,
+          
+          checkBattleSystemAvailability() {
+            this.battleSystemEnabled = !!(
+              this.scene.gameWorld && 
+              this.scene.gameWorld.battleManager &&
+              typeof BattleManager !== 'undefined'
+            );
+            
+            if (!this.battleSystemEnabled) {
+              this.battleSystemEnabled = !!(
+                typeof BattleData !== 'undefined' ||
+                typeof BattleResolver !== 'undefined' ||
+                this.scene.battleSystemEnabled
+              );
+            }
+            
+            const availability = {
+              gameWorld: !!this.scene.gameWorld,
+              battleManager: !!this.scene.gameWorld?.battleManager,
+              BattleManager: typeof BattleManager !== 'undefined',
+              enabled: this.battleSystemEnabled
+            };
+            
+            log(`<strong>🗡️ Battle system availability check:</strong>`, 'info');
+            log(`<pre>${JSON.stringify(availability, null, 2)}</pre>`);
+            
+            return availability;
+          }
+        };
+        
+        // Set the gameWorld reference in scene (this might be missing!)
+        mockScene.gameWorld = gameWorld;
+        
+        // Now run the availability check
+        const availability = mockAdminPanel.checkBattleSystemAvailability();
+        
+        step(6, 'Analysis');
+        if (availability.battleManager) {
+          log('✅ Battle system working correctly!', 'success');
+        } else {
+          log('❌ battleManager is null - this reproduces the issue!', 'error');
+          
+          // Let's debug why
+          log('Debugging battleManager creation...', 'warning');
+          log(`GameWorld constructor finished without error: ${!!gameWorld}`, 'info');
+          log(`BattleManager class exists: ${typeof BattleManager !== 'undefined'}`, 'info');
+          log(`GameWorld.battleManager after creation: ${!!gameWorld.battleManager}`, 'info');
+          
+          // Try to create BattleManager manually
+          try {
+            const testBattleManager = new BattleManager(gameWorld);
+            log(`✅ Manual BattleManager creation works: ${!!testBattleManager}`, 'success');
+            log('This suggests the issue is in GameWorld constructor logic!', 'error');
+          } catch (e) {
+            log(`❌ Manual BattleManager creation failed: ${e.message}`, 'error');
+          }
+        }
+        
+      } catch (error) {
+        log(`❌ Simulation failed: ${error.message}`, 'error');
+        log(`Stack: ${error.stack}`, 'error');
+      }
+    };
+  </script>
+</body>
+</html>

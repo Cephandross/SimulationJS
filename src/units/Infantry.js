@@ -80,3 +80,9 @@ class Healer extends Unit {
 window.FootSoldier = FootSoldier;
 window.Shieldbearer = Shieldbearer;
 window.Healer = Healer;
+
+// Legacy aliases for backward compatibility
+window.Warrior = FootSoldier;  // Warrior -> FootSoldier
+window.Soldier = FootSoldier;  // Alternative alias
+
+// Note: Archer -> MountedArcher alias is defined in Cavalry.js after MountedArcher is loaded
