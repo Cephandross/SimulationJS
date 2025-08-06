@@ -1385,8 +1385,8 @@ class AdminPanel extends BaseModal {
 
       // Frequency control
       const freqBtn = document.createElement('button');
-      const aiSystem = this.scene.gameWorld.aiManager.getAISystem(player);
-      const currentFreq = aiSystem ? aiSystem.getUpdateConfig().frequency : '3000ms';
+      const aiSystemFreq = this.scene.gameWorld.aiManager.getAISystem(player);
+      const currentFreq = aiSystemFreq ? aiSystemFreq.getUpdateConfig().frequency : '3000ms';
       const isPerTick = currentFreq === 'every_tick';
       
       freqBtn.textContent = isPerTick ? '⚡' : '⏰';
