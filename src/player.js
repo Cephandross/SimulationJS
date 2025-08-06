@@ -109,7 +109,7 @@ class Player {
 
     // 2) Update unit movement/AI
     this.units.forEach(unit => {
-      unit.update();
+      unit.tick();
     });
 
     // 3) Food upkeep

@@ -18,7 +18,7 @@ class AdminPanel extends BaseModal {
     this.currentSaveSystem = 'quick'; // 'quick' or 'full'
     
     // NEW: Battle system state
-    this.battleSystemEnabled = false;
+    this.battleSystemEnabled = true;
     
     // Override container styling for better visibility
     this.container.style.cssText = `
