@@ -199,10 +199,10 @@ python3 -m http.server 8080
 
 ### Command Timing (NEVER CANCEL)
 - **npm install**: 10-30 seconds depending on network/platform. NEVER CANCEL.
-- **npm run hexify**: 0.21 seconds (297 images processed) - very fast, no timeout needed
+- **npm run hexify**: typically under 1 second (297 images processed) - very fast, no timeout needed (timing may vary by system)
 - **Battle system tests**: 2-3 seconds for all 9 tests
 - **Server startup**: Immediate (python3 -m http.server)
-- **node hexify-sharp.js**: 0.21 seconds (same as npm run hexify)
+- **node hexify-sharp.js**: typically under 1 second (similar to npm run hexify; timing may vary)
 
 ### Resource Usage
 - **Memory**: Battle system test uses minimal memory
