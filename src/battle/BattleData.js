@@ -1,11 +1,29 @@
 /**
- * BattleData - Battle state data structures and management
+ * BattleData - Comprehensive battle state data structures and management
  * 
- * Handles dual initialization patterns:
- * 1. Legacy: new BattleData() + initialize(attacker, defender, hex)
- * 2. Modern: new BattleData(id, hex, attackers, defenders, startTick)
+ * This class provides a robust data structure for tracking battle state, participants,
+ * events, and outcomes. It supports both modern and legacy initialization patterns
+ * to maintain compatibility with existing code while providing advanced features.
+ * 
+ * Key Features:
+ * - Dual initialization patterns (modern constructor vs legacy initialize method)
+ * - Comprehensive battle logging with event tracking
+ * - Memory management with destruction cleanup
+ * - Serialization/deserialization for network sync
+ * - Statistical analysis and battle metrics
+ * - Null safety and defensive programming throughout
+ * - Support for spectators and reinforcements
+ * 
+ * Initialization Patterns:
+ * 1. Modern: new BattleData(id, hex, attackers, defenders, startTick)
+ * 2. Legacy: new BattleData() + initialize(attacker, defender, hex)
+ * 
+ * The class automatically detects which pattern is being used and configures
+ * itself accordingly, ensuring maximum compatibility.
  * 
  * @class BattleData
+ * @version 2.0.0
+ * @author SimulationJS Battle System
  */
 class BattleData {
     /**
@@ -17,8 +35,8 @@ class BattleData {
      * @param {number} startTick - Game tick when battle started (optional for legacy)
      */
     constructor(id = null, hex = null, attackers = [], defenders = [], startTick = 0) {
-        // Support both constructor patterns - yours and the expected one
-        if (id && hex && attackers.length > 0) {
+        // Support both constructor patterns - modern and legacy
+        if (id && hex) {
             // Modern pattern from battle system
             this.id = id;
             this.hex = hex; // [q, r] coordinates
