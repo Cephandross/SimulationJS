@@ -324,7 +324,10 @@ class MainScene extends Phaser.Scene {
     }
 
     // Game tick logic using GameWorld (enhanced for battle system)
-    if (time - this.lastTick > TICK_INTERVAL) {
+    const currentMultiplier = this.timeMultiplier || 1;
+    const effectiveTickInterval = TICK_INTERVAL / currentMultiplier;
+    
+    if (time - this.lastTick > effectiveTickInterval) {
       this.lastTick = time;
       this.tickCount++;
 
@@ -440,6 +443,16 @@ Game running in basic mode - add battle system files to enable combat popups
       console.error('❌ Battle simulation failed:', error);
       return false;
     }
+  }
+
+  // NEW: Set time speed multiplier
+  setTimeSpeed(multiplier) {
+    this.timeMultiplier = multiplier;
+    console.log(`⏰ MainScene time speed set to ${multiplier}x`);
+    
+    // The multiplier will be applied in the update loop tick logic
+    // by modifying TICK_INTERVAL dynamically or by calling tick multiple times
+    return true;
   }
 }
 
