@@ -8,7 +8,7 @@ class Barracks extends Building {
       owner: owner,
       coords: coords,
       scene: scene,
-      costs: { wood:100, stone:50 },
+      costs: { wood: 250, stone: 150 },
       hitpoints: 200,
       buildTime: 4
     });
@@ -24,7 +24,7 @@ class Stables extends Building {
       owner: owner,
       coords: coords,
       scene: scene,
-      costs: { wood:150, stone:75 },
+      costs: { wood: 300, stone: 200 },
       hitpoints: 200,
       buildTime: 5
     });
@@ -40,7 +40,7 @@ class Workshop extends Building {
       owner: owner,
       coords: coords,
       scene: scene,
-      costs: { wood: 80, stone: 80 },
+      costs: { wood: 200, stone: 150 },
       hitpoints: 150,
       buildTime: 4
     });

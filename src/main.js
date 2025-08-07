@@ -85,10 +85,10 @@ class MainScene extends Phaser.Scene {
       this.gameWorld.addPlayer(cpu1);
       this.gameWorld.addPlayer(cpu2);
       
-      // Give them resources
+      // Give them resources (reduced for strategic gameplay)
       [cpu1, cpu2].forEach(p =>
         p.addResources({
-          food: 1000, wood: 1000, stone: 1000
+          food: 500, wood: 500, stone: 500
         })
       );
 

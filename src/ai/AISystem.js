@@ -86,7 +86,7 @@ class AISystem {
     // Tick timing - configurable update frequency
     this.lastUpdate = 0;
     this.lastTickUpdate = null; // Track last game tick for tick-based updates
-    this.updateInterval = 3000; // Default: Update every 3 seconds (6 game ticks)
+    this.updateInterval = 5000; // Default: Update every 5 seconds (changed from 3000)
     this.tickBasedUpdates = false; // When true, updates every game tick regardless of time
     
     // Initialize AI
@@ -567,6 +567,20 @@ class AISystem {
     return false;
   }
 
+  /**
+   * NEW: Check if AI can afford building with scaled costs
+   */
+  canAffordBuilding(buildingType) {
+    // Get the actual building class
+    const BuildingClass = window[buildingType];
+    if (!BuildingClass) return false;
+    
+    // Use the scaled costs instead of hardcoded costs
+    const scaledCosts = this.player.getScaledBuildingCosts(BuildingClass);
+    
+    return this.player.canAfford(scaledCosts);
+  }
+
   spawnWorkerUnit() {
     if (window.Worker && this.player.spawnUnit) {
       const spawnSite = this.findUnitSpawnSite();
@@ -789,12 +803,23 @@ class AISystem {
   findBuildingSite() {
     // Find an empty, buildable tile near player's buildings
     const playerBuildings = this.player.buildings;
-    if (playerBuildings.length === 0) return [0, 0]; // Default position
+    if (playerBuildings.length === 0) {
+      // For initial building placement, try to find a suitable starting location
+      const startCoords = this.player.startCoords || [0, 0];
+      return this.findEmptyTileAtDistance(startCoords[0], startCoords[1], 2);
+    }
     
     const baseBuilding = playerBuildings[0];
     const [baseQ, baseR] = baseBuilding.coords || [0, 0];
     
-    return this.findEmptyTileAtDistance(baseQ, baseR, 3);
+    // Try expanding search radius if initial search fails
+    for (let distance = 2; distance <= 8; distance++) {
+      const site = this.findEmptyTileAtDistance(baseQ, baseR, distance);
+      if (site) return site;
+    }
+    
+    // Fallback: try a random nearby location
+    return [baseQ + Phaser.Math.Between(-3, 3), baseR + Phaser.Math.Between(-3, 3)];
   }
 
   findUnitSpawnSite() {

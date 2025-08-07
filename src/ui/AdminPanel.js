@@ -20,6 +20,18 @@ class AdminPanel extends BaseModal {
     // NEW: Battle system state
     this.battleSystemEnabled = true;
     
+    // NEW: Tab management
+    this.currentTab = 'overview';
+    this.tabs = {
+      'overview': { icon: '📊', label: 'Overview', enabled: true },
+      'players': { icon: '👥', label: 'Players', enabled: true },
+      'ai': { icon: '🤖', label: 'AI Systems', enabled: true },
+      'battle': { icon: '⚔️', label: 'Battle', enabled: true },
+      'world': { icon: '🌍', label: 'World', enabled: true },
+      'resources': { icon: '💰', label: 'Resources', enabled: false }, // only in god mode
+      'saves': { icon: '💾', label: 'Save/Load', enabled: false } // only in god mode
+    };
+    
     // Override container styling for better visibility
     this.container.style.cssText = `
       position: fixed;
@@ -38,8 +50,7 @@ class AdminPanel extends BaseModal {
       box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(10px);
       display: none;
-      overflow-y: auto;
-      max-height: calc(100vh - 80px);
+      overflow: hidden;
     `;
     
     // NEW: Check if battle system is available
@@ -2159,44 +2170,153 @@ class AdminPanel extends BaseModal {
     // Check AI system availability on each build 
     this.checkAISystemAvailability();
     
+    // Update tab availability based on god mode
+    this.tabs.resources.enabled = this.godMode;
+    this.tabs.saves.enabled = this.godMode;
+    
     this.clearContent();
 
+    // Create tab navigation
+    this.createTabNavigation();
+    
+    // Create tab content area
+    this.createTabContent();
+  }
+
+  createTabNavigation() {
+    const tabNav = document.createElement('div');
+    tabNav.style.cssText = `
+      display: flex;
+      background: rgba(31, 41, 55, 0.8);
+      border-bottom: 2px solid rgb(75, 85, 99);
+      overflow-x: auto;
+      flex-shrink: 0;
+    `;
+
+    Object.entries(this.tabs).forEach(([tabId, tab]) => {
+      if (!tab.enabled) return;
+      
+      const tabButton = document.createElement('button');
+      tabButton.style.cssText = `
+        flex: 1;
+        min-width: 50px;
+        padding: 8px 4px;
+        border: none;
+        background: ${this.currentTab === tabId ? 'rgba(59, 130, 246, 0.5)' : 'transparent'};
+        color: ${this.currentTab === tabId ? '#60a5fa' : '#9ca3af'};
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: bold;
+        transition: all 0.2s;
+        border-bottom: 2px solid ${this.currentTab === tabId ? '#3b82f6' : 'transparent'};
+      `;
+      
+      tabButton.innerHTML = `${tab.icon}<br><span style="font-size: 9px;">${tab.label}</span>`;
+      
+      tabButton.onmouseover = () => {
+        if (this.currentTab !== tabId) {
+          tabButton.style.background = 'rgba(75, 85, 99, 0.3)';
+          tabButton.style.color = '#d1d5db';
+        }
+      };
+      
+      tabButton.onmouseout = () => {
+        if (this.currentTab !== tabId) {
+          tabButton.style.background = 'transparent';
+          tabButton.style.color = '#9ca3af';
+        }
+      };
+      
+      tabButton.onclick = () => {
+        this.currentTab = tabId;
+        this.buildInterface(); // Rebuild with new tab
+      };
+      
+      tabNav.appendChild(tabButton);
+    });
+
+    this.addToContent(tabNav);
+  }
+
+  createTabContent() {
+    const contentArea = document.createElement('div');
+    contentArea.style.cssText = `
+      flex: 1;
+      overflow-y: auto;
+      background: rgba(17, 24, 39, 0.95);
+    `;
+
+    // Add content based on current tab
+    switch (this.currentTab) {
+      case 'overview':
+        this.createOverviewTab(contentArea);
+        break;
+      case 'players':
+        this.createPlayersTab(contentArea);
+        break;
+      case 'ai':
+        this.createAITab(contentArea);
+        break;
+      case 'battle':
+        this.createBattleTab(contentArea);
+        break;
+      case 'world':
+        this.createWorldTab(contentArea);
+        break;
+      case 'resources':
+        this.createResourcesTab(contentArea);
+        break;
+      case 'saves':
+        this.createSavesTab(contentArea);
+        break;
+    }
+
+    this.addToContent(contentArea);
+  }
+
+  createOverviewTab(container) {
     // God Mode Toggle
-    this.createGodModeSection();
+    this.createGodModeSection(container);
     
-    // Player Management
-    this.createPlayerSection();
+    // Quick player overview
+    this.createQuickPlayerOverview(container);
     
-    // Resource Management (only if god mode)
-    if (this.godMode) {
-      this.createResourceSection();
-    }
-    
-    // Save/Load System (only if god mode) - Preserved
-    if (this.godMode) {
-      this.createSaveLoadSection();
-    }
+    // System status
+    this.createSystemStatusSection(container);
+  }
 
-    // NEW: AI System (only if god mode)
-    if (this.godMode) {
-      this.createAISection();
-    }
+  createPlayersTab(container) {
+    this.createPlayerSection(container);
+  }
 
-    // NEW: Battle System (only if god mode)
+  createAITab(container) {
+    this.createAISection(container);
+  }
+
+  createBattleTab(container) {
+    this.createBattleSection(container);
+  }
+
+  createWorldTab(container) {
+    this.createTimeSection(container);
     if (this.godMode) {
-      this.createBattleSection();
+      this.createSpawningSection(container);
+      this.createUnitControlSection(container);
+      this.createWorldControlSection(container);
     }
-    
-    // Time Controls
-    this.createTimeSection();
-    
-    // Entity Spawning (only if god mode) - Enhanced with battle units
+  }
+
+  createResourcesTab(container) {
     if (this.godMode) {
-      this.createSpawningSection();
-      this.createUnitControlSection();
+      this.createResourceSection(container);
     }
-    
-    // World Controls (only if god mode)
+  }
+
+  createSavesTab(container) {
+    if (this.godMode) {
+      this.createSaveLoadSection(container);
+    }
+  }
     if (this.godMode) {
       this.createWorldSection();
     }
@@ -2205,7 +2325,7 @@ class AdminPanel extends BaseModal {
     this.createDebugSection();
   }
 
-  createGodModeSection() {
+  createGodModeSection(container) {
     const section = document.createElement('div');
     section.style.cssText = `
       padding: 12px;
@@ -2243,7 +2363,7 @@ class AdminPanel extends BaseModal {
     };
 
     section.appendChild(toggle);
-    this.addToContent(section);
+    container.appendChild(section);
   }
 
   createPlayerSection() {
