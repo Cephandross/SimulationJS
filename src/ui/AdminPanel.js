@@ -1,53 +1,38 @@
-// src/ui/AdminPanel.js - Complete with Save/Load and Battle System Integration
+// src/ui/AdminPanel.js - Modern Admin Panel with Tabbed Interface
 
 class AdminPanel extends BaseModal {
   constructor(scene) {
     super(scene, {
-      width: 380,
-      height: 850, // Reduced height to avoid overlap
-      x: window.innerWidth - 400,
-      y: 60, // Moved down to avoid top player bar
+      width: 420,
+      height: 700,
+      x: window.innerWidth - 440,
+      y: 60,
       title: '⚡ Admin Panel',
-      closable: true
+      closable: true,
+      tabs: [
+        { id: 'overview', label: 'Overview', icon: '📊' },
+        { id: 'players', label: 'Players', icon: '👥' },
+        { id: 'ai', label: 'AI Systems', icon: '🤖' },
+        { id: 'battle', label: 'Battle', icon: '⚔️' },
+        { id: 'world', label: 'World', icon: '🌍' },
+        { id: 'resources', label: 'Resources', icon: '💰' },
+        { id: 'saves', label: 'Save/Load', icon: '💾' }
+      ]
     });
 
     this.selectedPlayer = null;
     this.timeMultiplier = 1;
     this.godMode = false;
     this.autoSaveEnabled = false;
-    this.currentSaveSystem = 'quick'; // 'quick' or 'full'
+    this.currentSaveSystem = 'quick';
     
-    // NEW: Battle system state
+    // Battle system state
     this.battleSystemEnabled = true;
     
-    // NEW: Tab management
-    this.currentTab = 'overview';
-    this.tabs = {
-      'overview': { icon: '📊', label: 'Overview', enabled: true },
-      'players': { icon: '👥', label: 'Players', enabled: true },
-      'ai': { icon: '🤖', label: 'AI Systems', enabled: true },
-      'battle': { icon: '⚔️', label: 'Battle', enabled: true },
-      'world': { icon: '🌍', label: 'World', enabled: true },
-      'resources': { icon: '💰', label: 'Resources', enabled: false }, // only in god mode
-      'saves': { icon: '💾', label: 'Save/Load', enabled: false } // only in god mode
-    };
-    
-    // Override container styling for better visibility
-    this.container.style.cssText = `
-      position: fixed;
-      left: ${window.innerWidth - 400}px;
-      top: 60px;
-      width: 380px;
-      height: 850px;
-      background: rgba(17, 24, 39, 0.98);
-      border: 2px solid rgb(75, 85, 99);
-      border-radius: 8px;
-      display: flex;
-      flex-direction: column;
-      z-index: 2000;
-      font-family: Arial, sans-serif;
-      color: white;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    this.createPanelContent();
+    this.setupEventHandlers();
+    this.setFooterText('Modern Admin Panel v2.0 - Use tabs for navigation');
+  }
       backdrop-filter: blur(10px);
       display: none;
       overflow: hidden;

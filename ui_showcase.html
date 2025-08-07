@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Modern UI Showcase - SimulationJS</title>
+  <link rel="icon" href="data:;base64,iVBORw0KGgo=">
+  
+  <!-- Modern UI Styles -->
+  <link rel="stylesheet" href="src/ui/styles/modern-ui.css">
+  
+  <!-- Core UI Components -->
+  <script src="src/ui/BaseModal.js"></script>
+  <script src="src/ui/ModernAdminPanel.js"></script>
+  
+  <style>
+    body { 
+      margin: 0; 
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      font-family: var(--font-family);
+      overflow-x: hidden;
+    }
+    
+    .showcase-container {
+      padding: var(--space-2xl);
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .showcase-header {
+      text-align: center;
+      margin-bottom: var(--space-3xl);
+      padding: var(--space-2xl);
+      background: var(--bg-secondary);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-secondary);
+    }
+    
+    .showcase-section {
+      margin-bottom: var(--space-3xl);
+    }
+    
+    .showcase-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: var(--space-lg);
+      margin-bottom: var(--space-lg);
+    }
+    
+    .demo-sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 250px;
+      height: 100vh;
+      background: var(--bg-secondary);
+      border-right: 1px solid var(--border-secondary);
+      padding: var(--space-lg);
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-sm);
+      z-index: 100;
+    }
+    
+    .main-content {
+      margin-left: 270px;
+      padding: var(--space-lg);
+    }
+    
+    .color-palette {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: var(--space-sm);
+    }
+    
+    .color-sample {
+      padding: var(--space-md);
+      border-radius: var(--radius-md);
+      text-align: center;
+      font-size: var(--font-size-xs);
+      border: 1px solid var(--border-secondary);
+    }
+    
+    .component-demo {
+      background: var(--bg-secondary);
+      padding: var(--space-lg);
+      border-radius: var(--radius-lg);
+      border: 1px solid var(--border-secondary);
+    }
+    
+    h1, h2, h3 { color: var(--text-primary); }
+    h2 { border-bottom: 2px solid var(--accent-primary); padding-bottom: var(--space-sm); }
+  </style>
+</head>
+<body class="game-ui">
+  
+  <!-- Demo Sidebar -->
+  <div class="demo-sidebar">
+    <h3 style="margin: 0 0 16px 0; color: var(--accent-primary);">🎮 SimulationJS</h3>
+    
+    <div class="sidebar-item active">
+      <span class="sidebar-item-icon">🏠</span>
+      <span>Home</span>
+      <span class="sidebar-item-badge">1</span>
+    </div>
+    
+    <div class="sidebar-item">
+      <span class="sidebar-item-icon">👥</span>
+      <span>Players</span>
+      <span class="sidebar-item-badge">3</span>
+    </div>
+    
+    <div class="sidebar-item">
+      <span class="sidebar-item-icon">⚔️</span>
+      <span>Battles</span>
+    </div>
+    
+    <div class="sidebar-item">
+      <span class="sidebar-item-icon">🏗️</span>
+      <span>Buildings</span>
+      <span class="sidebar-item-badge">12</span>
+    </div>
+    
+    <div class="sidebar-item">
+      <span class="sidebar-item-icon">🌍</span>
+      <span>World</span>
+    </div>
+    
+    <div class="sidebar-item">
+      <span class="sidebar-item-icon">💰</span>
+      <span>Resources</span>
+    </div>
+    
+    <div class="sidebar-item">
+      <span class="sidebar-item-icon">⚙️</span>
+      <span>Settings</span>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main-content">
+    <div class="showcase-container">
+      
+      <!-- Header -->
+      <div class="showcase-header">
+        <h1>🎨 Modern UI Design System</h1>
+        <p style="color: var(--text-secondary); margin: 8px 0 0 0;">
+          Contemporary game interface inspired by warera.io and bconomy
+        </p>
+      </div>
+
+      <!-- Color Palette -->
+      <section class="showcase-section">
+        <h2>🎨 Color Palette</h2>
+        <div class="color-palette">
+          <div class="color-sample" style="background: var(--bg-primary);">Primary BG</div>
+          <div class="color-sample" style="background: var(--bg-secondary);">Secondary BG</div>
+          <div class="color-sample" style="background: var(--bg-tertiary);">Tertiary BG</div>
+          <div class="color-sample" style="background: var(--accent-primary);">Primary Accent</div>
+          <div class="color-sample" style="background: var(--accent-secondary);">Secondary Accent</div>
+          <div class="color-sample" style="background: var(--accent-tertiary);">Tertiary Accent</div>
+          <div class="color-sample" style="background: var(--accent-warning);">Warning</div>
+          <div class="color-sample" style="background: var(--accent-danger);">Danger</div>
+          <div class="color-sample" style="background: var(--accent-success);">Success</div>
+        </div>
+      </section>
+
+      <!-- Buttons -->
+      <section class="showcase-section">
+        <h2>🔘 Button Components</h2>
+        <div class="component-demo">
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+            <button class="btn btn-primary">Primary Button</button>
+            <button class="btn btn-secondary">Secondary Button</button>
+            <button class="btn btn-danger">Danger Button</button>
+            <button class="btn btn-primary btn-sm">Small Primary</button>
+          </div>
+          <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+            <button class="btn btn-primary">🚀 With Icon</button>
+            <button class="btn btn-secondary">📊 Analytics</button>
+            <button class="btn btn-danger">🗑️ Delete</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Cards -->
+      <section class="showcase-section">
+        <h2>🃏 Card Components</h2>
+        <div class="showcase-grid">
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">📊 Statistics</h3>
+              <button class="help-btn">?</button>
+            </div>
+            <div class="card-content">
+              <p style="color: var(--text-secondary); margin: 0;">This is a sample card with header and content sections.</p>
+            </div>
+          </div>
+          
+          <div class="card">
+            <div class="card-header">
+              <h3 class="card-title">⚡ Resource Management</h3>
+            </div>
+            <div class="card-content">
+              <div class="resource-display">
+                <span class="resource-icon">🪙</span>
+                <div class="resource-info">
+                  <p class="resource-name">Gold</p>
+                  <p class="resource-value">15,432</p>
+                </div>
+                <span style="color: var(--accent-success); font-size: 12px;">+250</span>
+              </div>
+              
+              <div class="resource-display">
+                <span class="resource-icon">🍎</span>
+                <div class="resource-info">
+                  <p class="resource-name">Food</p>
+                  <p class="resource-value">8,921</p>
+                </div>
+                <span style="color: var(--accent-danger); font-size: 12px;">-45</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Progress Bars -->
+      <section class="showcase-section">
+        <h2>📊 Progress Indicators</h2>
+        <div class="component-demo">
+          <div style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: var(--text-secondary); font-size: 12px;">Health</span>
+              <span style="color: var(--text-primary); font-size: 12px;">85/100</span>
+            </div>
+            <div class="progress-container">
+              <div class="progress-bar health" style="width: 85%;"></div>
+            </div>
+          </div>
+          
+          <div style="margin-bottom: 16px;">
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: var(--text-secondary); font-size: 12px;">Experience</span>
+              <span style="color: var(--text-primary); font-size: 12px;">1,250/2,000</span>
+            </div>
+            <div class="progress-container">
+              <div class="progress-bar experience" style="width: 62.5%;"></div>
+            </div>
+          </div>
+          
+          <div>
+            <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
+              <span style="color: var(--text-secondary); font-size: 12px;">Resources</span>
+              <span style="color: var(--text-primary); font-size: 12px;">45/50</span>
+            </div>
+            <div class="progress-container">
+              <div class="progress-bar resource" style="width: 90%;"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Form Elements -->
+      <section class="showcase-section">
+        <h2>📝 Form Elements</h2>
+        <div class="component-demo">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+            <div>
+              <label style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Player Name</label>
+              <input type="text" class="form-input" placeholder="Enter name..." value="CommanderX">
+            </div>
+            
+            <div>
+              <label style="color: var(--text-secondary); font-size: 12px; display: block; margin-bottom: 4px;">Game Mode</label>
+              <select class="form-select">
+                <option>Campaign</option>
+                <option selected>Sandbox</option>
+                <option>Multiplayer</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Status Indicators -->
+      <section class="showcase-section">
+        <h2>🚦 Status Indicators</h2>
+        <div class="component-demo">
+          <div style="display: flex; flex-direction: column; gap: 8px;">
+            <div style="display: flex; align-items: center;">
+              <div class="status-indicator online"></div>
+              <span style="color: var(--text-secondary); font-size: 12px;">Player 1 - Online</span>
+            </div>
+            <div style="display: flex; align-items: center;">
+              <div class="status-indicator busy"></div>
+              <span style="color: var(--text-secondary); font-size: 12px;">AI System - Processing</span>
+            </div>
+            <div style="display: flex; align-items: center;">
+              <div class="status-indicator away"></div>
+              <span style="color: var(--text-secondary); font-size: 12px;">Battle System - Ready</span>
+            </div>
+            <div style="display: flex; align-items: center;">
+              <div class="status-indicator offline"></div>
+              <span style="color: var(--text-secondary); font-size: 12px;">Player 3 - Disconnected</span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Tab System -->
+      <section class="showcase-section">
+        <h2>📑 Tab Interface</h2>
+        <div class="component-demo">
+          <div class="tab-container">
+            <div class="tab-nav">
+              <button class="tab-button active" onclick="switchDemoTab('overview')">📊 Overview</button>
+              <button class="tab-button" onclick="switchDemoTab('players')">👥 Players</button>
+              <button class="tab-button" onclick="switchDemoTab('settings')">⚙️ Settings</button>
+            </div>
+            
+            <div id="demo-tab-overview" class="tab-content active">
+              <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Game Overview</h4>
+              <p style="color: var(--text-secondary); font-size: 12px; margin: 0;">
+                This is the overview tab content. Here you would see key game statistics and quick actions.
+              </p>
+            </div>
+            
+            <div id="demo-tab-players" class="tab-content">
+              <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Player Management</h4>
+              <p style="color: var(--text-secondary); font-size: 12px; margin: 0;">
+                Player management interface would go here, showing active players and their status.
+              </p>
+            </div>
+            
+            <div id="demo-tab-settings" class="tab-content">
+              <h4 style="margin: 0 0 8px 0; color: var(--text-primary);">Game Settings</h4>
+              <p style="color: var(--text-secondary); font-size: 12px; margin: 0;">
+                Various game configuration options and preferences would be displayed here.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Action Buttons -->
+      <section class="showcase-section">
+        <h2>🎮 Interactive Demo</h2>
+        <div class="component-demo">
+          <div style="display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;">
+            <button class="btn btn-primary" onclick="showAdminPanel()">⚡ Open Admin Panel</button>
+            <button class="btn btn-secondary" onclick="window.open('/test_battle_system.html', '_blank')">🧪 Battle System Test</button>
+            <button class="btn btn-secondary" onclick="showTooltipDemo()">❓ Tooltip Demo</button>
+          </div>
+          <p style="color: var(--text-muted); font-size: 11px; margin: 8px 0 0 0;">
+            Click "Open Admin Panel" to see the full modern interface in action!
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <script>
+    let adminPanel = null;
+    
+    // Tab switching demo
+    function switchDemoTab(tabId) {
+      // Update buttons
+      document.querySelectorAll('.tab-button').forEach(btn => {
+        btn.classList.remove('active');
+      });
+      event.target.classList.add('active');
+      
+      // Update content
+      document.querySelectorAll('.tab-content').forEach(content => {
+        content.classList.remove('active');
+      });
+      document.getElementById(`demo-tab-${tabId}`).classList.add('active');
+    }
+    
+    // Admin Panel Demo
+    function showAdminPanel() {
+      if (!adminPanel) {
+        // Create a mock scene object
+        const mockScene = {};
+        adminPanel = new ModernAdminPanel(mockScene);
+      }
+      adminPanel.show();
+    }
+    
+    // Tooltip Demo
+    function showTooltipDemo() {
+      alert('Tooltip system is integrated into the CSS! Hover over any help button (?) to see tooltips in action.');
+    }
+    
+    // Add some interactive behavior to sidebar
+    document.querySelectorAll('.sidebar-item').forEach(item => {
+      item.addEventListener('click', function() {
+        document.querySelectorAll('.sidebar-item').forEach(i => i.classList.remove('active'));
+        this.classList.add('active');
+      });
+    });
+    
+    console.log('🎨 Modern UI Showcase loaded successfully!');
+    console.log('📱 Responsive design system active');
+    console.log('🎮 Ready for SimulationJS integration');
+  </script>
+
+</body>
+</html>
