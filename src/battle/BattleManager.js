@@ -30,7 +30,73 @@ class BattleManager {
   }
 
   /**
-   * Start a new battle or add units to existing battle at hex location
+   * Start battle between attacking unit and all defending units at target hex
+   * This is the main method for initiating stack-vs-stack battles
+   * 
+   * @param {Object} attacker - The attacking unit
+   * @param {Array} targetHex - Target hex coordinates [q, r]
+   * @returns {BattleData|null} The battle instance or null if no valid targets
+   */
+  startBattleAtHex(attacker, targetHex) {
+    const [q, r] = targetHex;
+    
+    // Get all units at target hex
+    const unitsAtHex = this.gameWorld.getUnitsAt(q, r);
+    
+    // Filter to enemy units only
+    const defenders = unitsAtHex.filter(unit => 
+      unit.owner !== attacker.owner && unit.isAlive()
+    );
+    
+    if (defenders.length === 0) {
+      console.log(`⚔️ No enemy units to fight at [${q}, ${r}]`);
+      return null;
+    }
+    
+    console.log(`⚔️ Starting battle: ${attacker.type} vs ${defenders.length} defenders at [${q}, ${r}]`);
+    return this.startBattle(targetHex, [attacker], defenders);
+  }
+
+  /**
+   * Start battle involving all units at a hex location
+   * Useful for when stacks collide or reinforcements arrive
+   * 
+   * @param {Array} hex - Hex coordinates [q, r]
+   * @returns {BattleData|null} The battle instance or null if no conflict
+   */
+  startBattleWithAllUnitsAt(hex) {
+    const [q, r] = hex;
+    const allUnits = this.gameWorld.getUnitsAt(q, r);
+    
+    if (allUnits.length < 2) {
+      return null; // Need at least 2 units
+    }
+    
+    // Group units by owner
+    const unitsByOwner = new Map();
+    allUnits.forEach(unit => {
+      if (!unitsByOwner.has(unit.owner)) {
+        unitsByOwner.set(unit.owner, []);
+      }
+      unitsByOwner.get(unit.owner).push(unit);
+    });
+    
+    // Need at least 2 different owners to have a battle
+    const owners = Array.from(unitsByOwner.keys());
+    if (owners.length < 2) {
+      return null; // All units belong to same owner
+    }
+    
+    // First owner's units are attackers, others are defenders
+    const attackers = unitsByOwner.get(owners[0]);
+    const defenders = [];
+    for (let i = 1; i < owners.length; i++) {
+      defenders.push(...unitsByOwner.get(owners[i]));
+    }
+    
+    console.log(`⚔️ Stack battle at [${q}, ${r}]: ${attackers.length} vs ${defenders.length}`);
+    return this.startBattle(hex, attackers, defenders);
+  }
    * 
    * This method handles both new battle creation and reinforcement of existing battles.
    * If a battle already exists at the specified hex, new units are added to appropriate sides.

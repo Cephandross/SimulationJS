@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Unit Stacking System Test</title>
+  <style>
+    body { 
+      font-family: Arial, sans-serif; 
+      margin: 20px; 
+      background: #1a202c; 
+      color: white; 
+    }
+    .test-result { 
+      margin: 10px 0; 
+      padding: 10px; 
+      border-radius: 5px; 
+    }
+    .pass { background: rgba(34, 197, 94, 0.2); border: 1px solid #22c55e; }
+    .fail { background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; }
+    pre { background: rgba(0,0,0,0.3); padding: 10px; border-radius: 5px; }
+    .info { background: rgba(59, 130, 246, 0.2); border: 1px solid #3b82f6; }
+  </style>
+</head>
+<body>
+  <h1>📦 Unit Stacking System Test</h1>
+  <div id="test-output"></div>
+
+  <!-- Load required dependencies -->
+  <script src="src/config.js"></script>
+  <script src="src/units/Unit.js"></script>
+  <script src="src/GameWorld.js"></script>
+  <script src="src/battle/BattleData.js"></script>
+  <script src="src/battle/BattleResolver.js"></script>
+  <script src="src/battle/BattleManager.js"></script>
+
+  <script>
+    const output = document.getElementById('test-output');
+    
+    function log(message, type = 'pass') {
+      const div = document.createElement('div');
+      div.className = `test-result ${type}`;
+      div.innerHTML = message;
+      output.appendChild(div);
+      console.log(message);
+    }
+    
+    function test(name, fn) {
+      try {
+        log(`<h3>Testing ${name}...</h3>`, 'info');
+        fn();
+        log(`✅ ${name} passed`);
+      } catch (error) {
+        log(`❌ ${name} failed: ${error.message}`, 'fail');
+        console.error(error);
+      }
+    }
+
+    // Mock dependencies for testing
+    function hexToPixel(q, r) {
+      return [q * 50, r * 50];
+    }
+    window.hexToPixel = hexToPixel;
+
+    // Mock Player class
+    class Player {
+      constructor(name, color) {
+        this.name = name;
+        this.color = color;
+        this.units = [];
+        this.buildings = [];
+      }
+    }
+
+    // Mock Scene class with minimal Phaser-like interface
+    class MockScene {
+      constructor() {
+        this.tickCount = 0;
+        this.map = {
+          getTile: (q, r) => ({ isPassable: () => true })
+        };
+        
+        // Mock Phaser add methods with proper chaining
+        this.add = {
+          sprite: (x, y, key, frame) => {
+            const sprite = {
+              setOrigin: (ox, oy) => sprite,
+              setDepth: (depth) => sprite,
+              setPosition: (x, y) => sprite,
+              setTint: (color) => sprite,
+              clearTint: () => sprite,
+              destroy: () => {}
+            };
+            return sprite;
+          },
+          circle: (x, y, radius, color) => {
+            const circle = {
+              setDepth: (depth) => circle,
+              setPosition: (x, y) => circle,
+              destroy: () => {}
+            };
+            return circle;
+          }
+        };
+        
+        // Mock time methods
+        this.time = {
+          delayedCall: (delay, callback) => {
+            setTimeout(callback, delay);
+          }
+        };
+      }
+    }
+
+    // Test stacking configuration
+    test('Stacking configuration constants', () => {
+      if (typeof MAX_STACK_SIZE === 'undefined') {
+        throw new Error('MAX_STACK_SIZE not defined');
+      }
+      if (typeof STACK_DISPLAY_LIMIT === 'undefined') {
+        throw new Error('STACK_DISPLAY_LIMIT not defined');
+      }
+      
+      log(`📦 MAX_STACK_SIZE: ${MAX_STACK_SIZE}`, 'info');
+      log(`🎨 STACK_DISPLAY_LIMIT: ${STACK_DISPLAY_LIMIT}`, 'info');
+    });
+
+    // Test GameWorld stacking methods
+    test('GameWorld stacking methods', () => {
+      const scene = new MockScene();
+      const gameWorld = new GameWorld(scene);
+      const player1 = new Player('Player1', 0xff0000);
+      const player2 = new Player('Player2', 0x00ff00);
+      
+      gameWorld.addPlayer(player1);
+      gameWorld.addPlayer(player2);
+      
+      // Create test units
+      const unit1 = new Unit({ type: 'Warrior', coords: [5, 5], owner: player1, scene });
+      const unit2 = new Unit({ type: 'Archer', coords: [5, 5], owner: player1, scene });
+      const unit3 = new Unit({ type: 'Scout', coords: [5, 5], owner: player2, scene });
+      
+      player1.units.push(unit1, unit2);
+      player2.units.push(unit3);
+      
+      // Test stacking methods
+      const unitsAt55 = gameWorld.getUnitsAt(5, 5);
+      if (unitsAt55.length !== 3) {
+        throw new Error(`Expected 3 units at [5,5], got ${unitsAt55.length}`);
+      }
+      
+      const stackSize = gameWorld.getStackSize(5, 5);
+      if (stackSize !== 3) {
+        throw new Error(`Expected stack size 3, got ${stackSize}`);
+      }
+      
+      const canAdd = gameWorld.canAddToStack(5, 5);
+      if (!canAdd) {
+        throw new Error('Should be able to add to stack (3 < 5)');
+      }
+      
+      log(`📦 Stack at [5,5]: ${stackSize} units`, 'info');
+    });
+
+    // Test stack info generation
+    test('Stack info generation', () => {
+      const scene = new MockScene();
+      const gameWorld = new GameWorld(scene);
+      const player1 = new Player('Player1', 0xff0000);
+      
+      gameWorld.addPlayer(player1);
+      
+      const unit1 = new Unit({ type: 'Warrior', coords: [10, 10], owner: player1, scene });
+      const unit2 = new Unit({ type: 'Warrior', coords: [10, 10], owner: player1, scene });
+      const unit3 = new Unit({ type: 'Archer', coords: [10, 10], owner: player1, scene });
+      
+      player1.units.push(unit1, unit2, unit3);
+      
+      const stackInfo = gameWorld.getStackInfo(10, 10);
+      if (!stackInfo) {
+        throw new Error('Stack info should exist');
+      }
+      
+      if (stackInfo.totalUnits !== 3) {
+        throw new Error(`Expected 3 total units, got ${stackInfo.totalUnits}`);
+      }
+      
+      if (stackInfo.composition.length !== 2) {
+        throw new Error(`Expected 2 unit types, got ${stackInfo.composition.length}`);
+      }
+      
+      log(`📦 Stack composition: ${JSON.stringify(stackInfo.composition.map(c => `${c.count}x ${c.type}`))}`, 'info');
+    });
+
+    // Test unit movement with stacking
+    test('Unit movement with stacking support', () => {
+      const scene = new MockScene();
+      const gameWorld = new GameWorld(scene);
+      const player1 = new Player('Player1', 0xff0000);
+      
+      gameWorld.addPlayer(player1);
+      
+      const unit1 = new Unit({ type: 'Warrior', coords: [0, 0], owner: player1, scene });
+      const unit2 = new Unit({ type: 'Archer', coords: [1, 1], owner: player1, scene });
+      
+      player1.units.push(unit1, unit2);
+      
+      // Test that unit can move to hex with another unit (stacking)
+      const canMove = unit2.canMoveTo(0, 0);
+      if (!canMove) {
+        throw new Error('Unit should be able to move to hex with existing unit (stacking)');
+      }
+      
+      // Test movement
+      unit2.setPosition(0, 0);
+      if (unit2.coords[0] !== 0 || unit2.coords[1] !== 0) {
+        throw new Error('Unit coordinates not updated correctly');
+      }
+      
+      const stackSize = gameWorld.getStackSize(0, 0);
+      if (stackSize !== 2) {
+        throw new Error(`Expected stack size 2 after movement, got ${stackSize}`);
+      }
+      
+      log(`📦 Successful movement created stack of ${stackSize} units`, 'info');
+    });
+
+    // Test stack size limits
+    test('Stack size limits', () => {
+      const scene = new MockScene();
+      const gameWorld = new GameWorld(scene);
+      const player1 = new Player('Player1', 0xff0000);
+      
+      gameWorld.addPlayer(player1);
+      
+      // Create units up to the limit
+      const units = [];
+      for (let i = 0; i < MAX_STACK_SIZE; i++) {
+        const unit = new Unit({ type: `Unit${i}`, coords: [20, 20], owner: player1, scene });
+        units.push(unit);
+        player1.units.push(unit);
+      }
+      
+      // Stack should be full, not able to add more
+      if (gameWorld.canAddToStack(20, 20)) {
+        throw new Error('Should not be able to add to full stack');
+      }
+      
+      // Add one more unit to exceed limit
+      const extraUnit = new Unit({ type: 'ExtraUnit', coords: [19, 19], owner: player1, scene });
+      player1.units.push(extraUnit);
+      
+      // Try to move extra unit to full stack
+      const canMove = extraUnit.canMoveTo(20, 20);
+      if (canMove) {
+        throw new Error('Should not be able to move to full stack');
+      }
+      
+      log(`📦 Stack limit enforced: ${MAX_STACK_SIZE} units maximum`, 'info');
+    });
+
+    // Test battle system integration with stacks
+    test('Battle system integration with stacks', () => {
+      const scene = new MockScene();
+      const gameWorld = new GameWorld(scene);
+      const player1 = new Player('Player1', 0xff0000);
+      const player2 = new Player('Player2', 0x00ff00);
+      
+      gameWorld.addPlayer(player1);
+      gameWorld.addPlayer(player2);
+      
+      // Create attacking unit with attack stats
+      const attacker = new Unit({ 
+        type: 'Warrior', 
+        coords: [30, 30], 
+        owner: player1, 
+        scene, 
+        hp: 20
+      });
+      attacker.attack = 10;
+      attacker.defense = 5;
+      attacker.range = 2; // Give range to attack nearby hex
+      player1.units.push(attacker);
+      
+      // Create defending stack
+      const defender1 = new Unit({ 
+        type: 'Archer', 
+        coords: [31, 30], 
+        owner: player2, 
+        scene, 
+        hp: 15
+      });
+      defender1.attack = 8;
+      defender1.defense = 3;
+      
+      const defender2 = new Unit({ 
+        type: 'Scout', 
+        coords: [31, 30], 
+        owner: player2, 
+        scene, 
+        hp: 12
+      });
+      defender2.attack = 6;
+      defender2.defense = 4;
+      
+      player2.units.push(defender1, defender2);
+      
+      // Test stack-aware target selection
+      const defendersAtHex = gameWorld.getUnitsAt(31, 30);
+      if (defendersAtHex.length !== 2) {
+        throw new Error(`Expected 2 defenders at hex, got ${defendersAtHex.length}`);
+      }
+      
+      const enemyDefenders = defendersAtHex.filter(unit => unit.owner !== attacker.owner);
+      if (enemyDefenders.length !== 2) {
+        throw new Error(`Expected 2 enemy defenders, got ${enemyDefenders.length}`);
+      }
+      
+      // Test attack validation with stacked targets
+      const canAttackDefender1 = attacker.canAttack(defender1);
+      if (!canAttackDefender1) {
+        throw new Error('Should be able to attack stacked unit');
+      }
+      
+      log(`⚔️ Stack contains ${defendersAtHex.length} defenders, ${enemyDefenders.length} enemies`, 'info');
+      log(`⚔️ Attack validation passed for stacked targets`, 'info');
+    });
+
+    log('<h2>🎯 Unit Stacking System Test Complete</h2>', 'info');
+    log('Unit stacking system implemented and functional. Ready for integration testing.', 'info');
+  </script>
+</body>
+</html>

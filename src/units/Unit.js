@@ -135,38 +135,89 @@ class Unit {
   }
 
   /**
-   * Move to new hex coordinates (single source of truth)
+   * Move to new hex coordinates with stacking support
    */
   setPosition(q, r) {
+    // Store old position for sprite management
+    const oldCoords = this.coords ? [...this.coords] : null;
+    
+    // Update coordinates
     this.coords = [q, r];
+    
+    // Update sprite position with stack offset
     this.updateSpritePosition();
+    
+    // If moved from another position, update old stack display
+    if (oldCoords && (oldCoords[0] !== q || oldCoords[1] !== r)) {
+      this.updateStackDisplay(oldCoords[0], oldCoords[1]);
+    }
+    
+    // Update new position stack display
+    this.updateStackDisplay(q, r);
   }
 
   /**
-   * Update sprite position to match coordinates
+   * Update sprite position to match coordinates with stack offset
    */
   updateSpritePosition() {
     if (!this.sprite) return;
     
-    const [x, y] = hexToPixel(this.coords[0], this.coords[1]);
-    this.sprite.setPosition(x, y);
+    const [q, r] = this.coords;
+    const [baseX, baseY] = hexToPixel(q, r);
+    
+    // Calculate stack position offset
+    const stackInfo = this.owner.gameWorld.getStackInfo(q, r);
+    let stackOffset = { x: 0, y: 0 };
+    
+    if (stackInfo && stackInfo.totalUnits > 1) {
+      const units = this.owner.gameWorld.getUnitsAt(q, r);
+      const myIndex = units.indexOf(this);
+      
+      // Arrange units in a small circle around the hex center for visibility
+      const angle = (myIndex / stackInfo.totalUnits) * Math.PI * 2;
+      const radius = Math.min(15, stackInfo.totalUnits * 3);
+      stackOffset.x = Math.cos(angle) * radius;
+      stackOffset.y = Math.sin(angle) * radius;
+    }
+    
+    this.sprite.setPosition(baseX + stackOffset.x, baseY + stackOffset.y);
     
     // Move team indicator with unit
     if (this.teamIndicator) {
-      this.teamIndicator.setPosition(x + 15, y - 15);
+      this.teamIndicator.setPosition(baseX + stackOffset.x + 15, baseY + stackOffset.y - 15);
     }
   }
 
   /**
-   * Check if this unit can move to target coordinates
+   * Update visual display for stacks at a position
+   */
+  updateStackDisplay(q, r) {
+    // Use StackDisplay UI component if available
+    if (this.scene.stackDisplay) {
+      this.scene.stackDisplay.updateStackAt(q, r);
+    }
+    
+    // Log for debugging
+    const stackInfo = this.owner.gameWorld.getStackInfo(q, r);
+    if (stackInfo && stackInfo.totalUnits > 1) {
+      console.log(`📦 Stack at [${q}, ${r}]: ${stackInfo.totalUnits} units`);
+    }
+  }
+
+  /**
+   * Check if this unit can move to target coordinates (supports stacking)
    */
   canMoveTo(q, r) {
     const tile = this.scene.map.getTile(q, r);
     if (!tile || !tile.isPassable()) return false;
     
-    // Check for other units at this position
-    const otherUnit = this.owner.gameWorld.getUnitAt(q, r);
-    return !otherUnit || otherUnit === this;
+    // Check stack size limit - can move if space available in stack
+    if (!this.owner.gameWorld.canAddToStack(q, r)) {
+      console.log(`📦 Cannot move ${this.type} to [${q}, ${r}] - stack is full`);
+      return false;
+    }
+    
+    return true;
   }
 
   // =============================================================================
@@ -267,7 +318,7 @@ class Unit {
   // =============================================================================
 
   /**
-   * Attack another unit - NOW TRIGGERS BATTLE SYSTEM
+   * Attack target unit or stack - NOW SUPPORTS STACKING
    */
   attackUnit(target) {
     if (!this.canAttack(target)) {
@@ -281,21 +332,17 @@ class Unit {
       return this.instantCombat(target); // Fallback to old system
     }
 
-    // Check if battle already exists at target location
+    // Use new stacking-aware battle initiation
     const battleHex = target.coords;
-    const existingBattle = this.scene.gameWorld.battleManager.getBattleAt(battleHex);
+    const battle = this.scene.gameWorld.battleManager.startBattleAtHex(this, battleHex);
     
-    if (existingBattle) {
-      // Join existing battle
-      this.scene.gameWorld.battleManager.addUnitToBattle(this, existingBattle);
-      console.log(`⚔️ ${this.type} joined existing battle at [${battleHex}]`);
+    if (battle) {
+      console.log(`⚔️ ${this.type} initiated battle at [${battleHex}]`);
+      return true;
     } else {
-      // Start new battle
-      this.scene.gameWorld.battleManager.startBattle(battleHex, [this], [target]);
-      console.log(`⚔️ ${this.type} started battle with ${target.type} at [${battleHex}]`);
+      console.warn(`❌ Could not start battle at [${battleHex}]`);
+      return false;
     }
-    
-    return true;
   }
 
   /**
