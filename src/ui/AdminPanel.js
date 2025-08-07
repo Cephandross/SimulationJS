@@ -2982,7 +2982,7 @@ class AdminPanel extends BaseModal {
       this.createUnitControlSection(container);  
       this.createWorldControlSection(container);
     }
-  }
+  
 
   createResourcesTab(container) {
     if (this.godMode) {
@@ -3024,7 +3024,7 @@ class AdminPanel extends BaseModal {
     
     // Debug Information - Enhanced with battle info
     this.createDebugSection();
-  }
+  };
 
   createGodModeSection(container) {
     const section = document.createElement('div');
