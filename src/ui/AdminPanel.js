@@ -2290,7 +2290,258 @@ class AdminPanel extends BaseModal {
   }
 
   createAITab(container) {
-    this.createAISection(container);
+    // Add AI monitoring section instead of existing createAISection
+    this.createAIMonitoringSection(container);
+  }
+
+  createAIMonitoringSection(container) {
+    const section = document.createElement('div');
+    section.style.cssText = `
+      padding: 12px;
+      border-bottom: 1px solid rgb(75, 85, 99);
+      background: rgba(168, 85, 247, 0.1);
+    `;
+
+    const header = document.createElement('h3');
+    header.textContent = '🤖 AI System Monitoring';
+    header.style.cssText = 'margin: 0 0 12px 0; color: white; font-size: 16px;';
+    section.appendChild(header);
+
+    if (!this.aiSystemEnabled) {
+      const disabledMsg = document.createElement('div');
+      disabledMsg.textContent = 'AI System not available. Check AIManager and AISystem classes.';
+      disabledMsg.style.cssText = 'color: #ef4444; font-style: italic; text-align: center; padding: 20px;';
+      section.appendChild(disabledMsg);
+      container.appendChild(section);
+      return;
+    }
+
+    // AI System Controls
+    const controlsContainer = document.createElement('div');
+    controlsContainer.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;';
+
+    const aiControls = [
+      { 
+        label: '🟢 Enable All AI', 
+        action: () => this.enableAllAI(), 
+        color: 'rgba(34, 197, 94, 0.8)' 
+      },
+      { 
+        label: '🔴 Disable All AI', 
+        action: () => this.disableAllAI(), 
+        color: 'rgba(239, 68, 68, 0.8)' 
+      },
+      { 
+        label: '⚙️ Set Frequency: 5s', 
+        action: () => this.setAllAIFrequency(5000), 
+        color: 'rgba(59, 130, 246, 0.8)' 
+      },
+      { 
+        label: '🔍 Debug Mode', 
+        action: () => this.toggleAIDebugMode(), 
+        color: 'rgba(107, 114, 128, 0.8)' 
+      }
+    ];
+
+    aiControls.forEach(({ label, action, color }) => {
+      const btn = document.createElement('button');
+      btn.textContent = label;
+      btn.style.cssText = `
+        padding: 8px;
+        border: none;
+        border-radius: 4px;
+        background: ${color};
+        color: white;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 500;
+        transition: all 0.2s;
+      `;
+      btn.onclick = action;
+      controlsContainer.appendChild(btn);
+    });
+
+    section.appendChild(controlsContainer);
+
+    // AI Status Display
+    const statusContainer = document.createElement('div');
+    statusContainer.id = 'ai-status-display';
+    statusContainer.style.cssText = `
+      background: rgba(31, 41, 55, 0.5);
+      border-radius: 4px;
+      padding: 12px;
+      margin-bottom: 12px;
+    `;
+
+    this.updateAIStatusDisplay(statusContainer);
+    section.appendChild(statusContainer);
+
+    // Player-specific AI controls
+    this.createPlayerAIControls(section);
+
+    container.appendChild(section);
+  }
+
+  updateAIStatusDisplay(container) {
+    if (!this.scene.gameWorld?.aiManager) {
+      container.innerHTML = '<div style="color: #ef4444; text-align: center;">AI Manager not available</div>';
+      return;
+    }
+
+    const aiManager = this.scene.gameWorld.aiManager;
+    const allStatus = aiManager.getAllAIStatus();
+
+    let statusHtml = `
+      <div style="color: #10b981; font-weight: bold; margin-bottom: 8px;">
+        Global AI Status: ${allStatus.globalStats.activeAISystems}/${allStatus.globalStats.totalAISystems} Active
+      </div>
+      <div style="font-size: 11px; color: #9ca3af; margin-bottom: 8px;">
+        Total Decisions: ${allStatus.globalStats.totalDecisions} | 
+        Total Tasks: ${allStatus.globalStats.totalTasks}
+      </div>
+    `;
+
+    allStatus.systems.forEach(system => {
+      const aiSystem = system.status;
+      statusHtml += `
+        <div style="border: 1px solid #374151; border-radius: 4px; padding: 8px; margin-bottom: 6px;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+            <span style="color: #${system.playerColor.toString(16).padStart(6, '0')}; font-weight: bold;">
+              ${system.playerName}
+            </span>
+            <span style="color: ${aiSystem.enabled ? '#10b981' : '#ef4444'}; font-size: 10px;">
+              ${aiSystem.enabled ? '●' : '○'} ${aiSystem.aiType}
+            </span>
+          </div>
+          <div style="font-size: 10px; color: #6b7280;">
+            Tasks: ${aiSystem.currentTasks.length} active, ${aiSystem.completedTasks.length} completed<br>
+            Resources: ${Math.round(aiSystem.performanceMetrics.resourceEfficiency)} efficiency, 
+            ${aiSystem.performanceMetrics.militaryStrength} military
+          </div>
+        </div>
+      `;
+    });
+
+    container.innerHTML = statusHtml;
+  }
+
+  createPlayerAIControls(section) {
+    const header = document.createElement('h4');
+    header.textContent = 'Per-Player AI Controls';
+    header.style.cssText = 'margin: 12px 0 8px 0; color: #d1d5db; font-size: 14px;';
+    section.appendChild(header);
+
+    const players = this.scene.gameWorld.players;
+    players.forEach(player => {
+      const playerDiv = document.createElement('div');
+      playerDiv.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px;
+        margin-bottom: 6px;
+        background: rgba(31, 41, 55, 0.3);
+        border-radius: 4px;
+      `;
+
+      const playerName = document.createElement('span');
+      playerName.textContent = player.name;
+      playerName.style.cssText = `color: #${player.color.toString(16).padStart(6, '0')}; font-weight: bold; font-size: 12px;`;
+
+      const controlsDiv = document.createElement('div');
+      controlsDiv.style.cssText = 'display: flex; gap: 4px;';
+
+      const toggleBtn = document.createElement('button');
+      toggleBtn.textContent = 'Toggle';
+      toggleBtn.style.cssText = `
+        padding: 4px 8px;
+        border: none;
+        border-radius: 3px;
+        background: rgba(107, 114, 128, 0.8);
+        color: white;
+        cursor: pointer;
+        font-size: 10px;
+      `;
+      toggleBtn.onclick = () => this.togglePlayerAI(player);
+
+      const strategyBtn = document.createElement('button');
+      strategyBtn.textContent = 'Strategy';
+      strategyBtn.style.cssText = `
+        padding: 4px 8px;
+        border: none;
+        border-radius: 3px;
+        background: rgba(59, 130, 246, 0.8);
+        color: white;
+        cursor: pointer;
+        font-size: 10px;
+      `;
+      strategyBtn.onclick = () => this.changePlayerAIStrategy(player);
+
+      controlsDiv.appendChild(toggleBtn);
+      controlsDiv.appendChild(strategyBtn);
+
+      playerDiv.appendChild(playerName);
+      playerDiv.appendChild(controlsDiv);
+      section.appendChild(playerDiv);
+    });
+  }
+
+  // AI System Control Methods
+  enableAllAI() {
+    if (this.scene.gameWorld?.aiManager) {
+      const count = this.scene.gameWorld.aiManager.setAllAIEnabled(true);
+      this.showNotification(`🤖 Enabled AI for ${count} players`, 'success');
+      setTimeout(() => this.updateAIStatusDisplay(document.getElementById('ai-status-display')), 100);
+    }
+  }
+
+  disableAllAI() {
+    if (this.scene.gameWorld?.aiManager) {
+      const count = this.scene.gameWorld.aiManager.setAllAIEnabled(false);
+      this.showNotification(`🤖 Disabled AI for ${count} players`, 'success');
+      setTimeout(() => this.updateAIStatusDisplay(document.getElementById('ai-status-display')), 100);
+    }
+  }
+
+  setAllAIFrequency(frequency) {
+    if (this.scene.gameWorld?.aiManager) {
+      const count = this.scene.gameWorld.aiManager.setAllAIFrequency(frequency);
+      this.showNotification(`🤖 Set AI frequency to ${frequency}ms for ${count} systems`, 'success');
+    }
+  }
+
+  toggleAIDebugMode() {
+    if (this.scene.gameWorld?.aiManager) {
+      const count = this.scene.gameWorld.aiManager.setGlobalDebugMode(true);
+      this.showNotification(`🔍 Debug mode enabled for ${count} AI systems`, 'success');
+    }
+  }
+
+  togglePlayerAI(player) {
+    if (this.scene.gameWorld?.aiManager) {
+      const aiSystem = this.scene.gameWorld.aiManager.getAISystem(player);
+      if (aiSystem) {
+        aiSystem.setEnabled(!aiSystem.enabled);
+        this.showNotification(`🤖 ${player.name} AI ${aiSystem.enabled ? 'enabled' : 'disabled'}`, 'success');
+        setTimeout(() => this.updateAIStatusDisplay(document.getElementById('ai-status-display')), 100);
+      }
+    }
+  }
+
+  changePlayerAIStrategy(player) {
+    if (this.scene.gameWorld?.aiManager) {
+      const strategies = ['peaceful', 'aggressive', 'balanced', 'economic', 'expansionist'];
+      const aiSystem = this.scene.gameWorld.aiManager.getAISystem(player);
+      if (aiSystem) {
+        const currentIndex = strategies.indexOf(aiSystem.aiType);
+        const nextIndex = (currentIndex + 1) % strategies.length;
+        const newStrategy = strategies[nextIndex];
+        
+        aiSystem.setAIType(newStrategy);
+        this.showNotification(`🤖 ${player.name} strategy: ${newStrategy}`, 'success');
+        setTimeout(() => this.updateAIStatusDisplay(document.getElementById('ai-status-display')), 100);
+      }
+    }
   }
 
   createBattleTab(container) {
@@ -2301,7 +2552,7 @@ class AdminPanel extends BaseModal {
     this.createTimeSection(container);
     if (this.godMode) {
       this.createSpawningSection(container);
-      this.createUnitControlSection(container);
+      this.createUnitControlSection(container);  
       this.createWorldControlSection(container);
     }
   }
@@ -2309,12 +2560,22 @@ class AdminPanel extends BaseModal {
   createResourcesTab(container) {
     if (this.godMode) {
       this.createResourceSection(container);
+    } else {
+      const msgDiv = document.createElement('div');
+      msgDiv.textContent = 'Resource management requires God Mode';
+      msgDiv.style.cssText = 'text-align: center; padding: 40px; color: #6b7280; font-style: italic;';
+      container.appendChild(msgDiv);
     }
   }
 
   createSavesTab(container) {
     if (this.godMode) {
       this.createSaveLoadSection(container);
+    } else {
+      const msgDiv = document.createElement('div');
+      msgDiv.textContent = 'Save/Load system requires God Mode';
+      msgDiv.style.cssText = 'text-align: center; padding: 40px; color: #6b7280; font-style: italic;';
+      container.appendChild(msgDiv);
     }
   }
     if (this.godMode) {
@@ -2366,7 +2627,113 @@ class AdminPanel extends BaseModal {
     container.appendChild(section);
   }
 
-  createPlayerSection() {
+  createQuickPlayerOverview(container) {
+    const section = document.createElement('div');
+    section.style.cssText = `
+      padding: 12px;
+      border-bottom: 1px solid rgb(75, 85, 99);
+      background: rgba(59, 130, 246, 0.1);
+    `;
+
+    const header = document.createElement('h3');
+    header.textContent = '👥 Player Overview';
+    header.style.cssText = 'margin: 0 0 12px 0; color: white; font-size: 14px;';
+    section.appendChild(header);
+
+    const players = this.scene.gameWorld.players;
+    players.forEach(player => {
+      const playerDiv = document.createElement('div');
+      playerDiv.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px;
+        margin-bottom: 4px;
+        background: rgba(31, 41, 55, 0.5);
+        border-radius: 4px;
+        font-size: 11px;
+      `;
+
+      const nameDiv = document.createElement('div');
+      nameDiv.innerHTML = `<span style="color: #${player.color.toString(16).padStart(6, '0')}">${player.name}</span>`;
+      
+      const statsDiv = document.createElement('div');
+      statsDiv.innerHTML = `${player.buildings.length}🏗️ ${player.units.length}👤`;
+      statsDiv.style.color = '#9ca3af';
+
+      playerDiv.appendChild(nameDiv);
+      playerDiv.appendChild(statsDiv);
+      section.appendChild(playerDiv);
+    });
+
+    container.appendChild(section);
+  }
+
+  createSystemStatusSection(container) {
+    const section = document.createElement('div');
+    section.style.cssText = `
+      padding: 12px;
+      border-bottom: 1px solid rgb(75, 85, 99);
+      background: rgba(16, 185, 129, 0.1);
+    `;
+
+    const header = document.createElement('h3');
+    header.textContent = '🔧 System Status';
+    header.style.cssText = 'margin: 0 0 12px 0; color: white; font-size: 14px;';
+    section.appendChild(header);
+
+    const statusItems = [
+      { 
+        label: 'Battle System', 
+        status: this.battleSystemEnabled, 
+        details: this.battleSystemEnabled ? 'All components loaded' : 'Battle files missing' 
+      },
+      { 
+        label: 'AI System', 
+        status: this.aiSystemEnabled, 
+        details: this.aiSystemEnabled ? 'AI manager active' : 'AI system disabled' 
+      },
+      { 
+        label: 'Game Time', 
+        status: true, 
+        details: `Tick ${this.scene.tickCount || 0} (${this.timeMultiplier}x speed)` 
+      }
+    ];
+
+    statusItems.forEach(item => {
+      const itemDiv = document.createElement('div');
+      itemDiv.style.cssText = `
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 6px;
+        margin-bottom: 4px;
+        background: rgba(31, 41, 55, 0.3);
+        border-radius: 3px;
+        font-size: 11px;
+      `;
+
+      const labelDiv = document.createElement('div');
+      labelDiv.textContent = item.label;
+      labelDiv.style.color = '#d1d5db';
+
+      const statusDiv = document.createElement('div');
+      statusDiv.innerHTML = `
+        <span style="color: ${item.status ? '#10b981' : '#ef4444'};">
+          ${item.status ? '✅' : '❌'}
+        </span>
+        <div style="font-size: 9px; color: #6b7280;">${item.details}</div>
+      `;
+
+      itemDiv.appendChild(labelDiv);
+      itemDiv.appendChild(statusDiv);
+      section.appendChild(itemDiv);
+    });
+
+    container.appendChild(section);
+  }
+
+  createPlayerSection(container) {
     const section = document.createElement('div');
     section.style.cssText = `
       padding: 12px;
@@ -2473,7 +2840,7 @@ class AdminPanel extends BaseModal {
       section.appendChild(info);
     }
 
-    this.addToContent(section);
+    container.appendChild(section);
   }
 
   createResourceSection() {
