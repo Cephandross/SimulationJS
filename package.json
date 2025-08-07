@@ -6,7 +6,6 @@
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
     "hexify": "node hexify-sharp.js"
-
   },
   "repository": {
     "type": "git",
@@ -18,5 +17,8 @@
   "bugs": {
     "url": "https://github.com/Cephandross/SimulationJS/issues"
   },
-  "homepage": "https://github.com/Cephandross/SimulationJS#readme"
+  "homepage": "https://github.com/Cephandross/SimulationJS#readme",
+  "dependencies": {
+    "sharp": "^0.34.3"
+  }
 }
