@@ -61,12 +61,76 @@ class GameWorld {
   }
 
   /**
-   * Find unit at specific coordinates
+   * Get all units at specific coordinates (supports stacking)
    */
-  getUnitAt(q, r) {
-    return this.getAllUnits().find(unit => 
+  getUnitsAt(q, r) {
+    return this.getAllUnits().filter(unit => 
       unit.coords[0] === q && unit.coords[1] === r
     );
+  }
+
+  /**
+   * Find unit at specific coordinates (legacy compatibility - returns first unit)
+   * @deprecated Use getUnitsAt() for stacking support
+   */
+  getUnitAt(q, r) {
+    const units = this.getUnitsAt(q, r);
+    return units.length > 0 ? units[0] : null;
+  }
+
+  /**
+   * Get the number of units stacked at specific coordinates
+   */
+  getStackSize(q, r) {
+    return this.getUnitsAt(q, r).length;
+  }
+
+  /**
+   * Check if more units can be added to a hex (stack limit check)
+   */
+  canAddToStack(q, r) {
+    const maxStackSize = typeof MAX_STACK_SIZE !== 'undefined' ? MAX_STACK_SIZE : 5;
+    return this.getStackSize(q, r) < maxStackSize;
+  }
+
+  /**
+   * Add unit to stack at coordinates (with validation)
+   */
+  addUnitToStack(unit, q, r) {
+    if (!this.canAddToStack(q, r)) {
+      console.warn(`❌ Cannot add ${unit.type} to stack at [${q}, ${r}] - stack limit reached`);
+      return false;
+    }
+    
+    // Update unit coordinates
+    unit.setPosition(q, r);
+    console.log(`📦 ${unit.type} added to stack at [${q}, ${r}] (${this.getStackSize(q, r)} units)`);
+    return true;
+  }
+
+  /**
+   * Get stack composition summary for UI display
+   */
+  getStackInfo(q, r) {
+    const units = this.getUnitsAt(q, r);
+    if (units.length === 0) return null;
+
+    // Group by type and owner for compact display
+    const composition = {};
+    units.forEach(unit => {
+      const key = `${unit.type}_${unit.owner.name}`;
+      if (!composition[key]) {
+        composition[key] = { type: unit.type, owner: unit.owner, count: 0 };
+      }
+      composition[key].count++;
+    });
+
+    return {
+      totalUnits: units.length,
+      composition: Object.values(composition),
+      canAddMore: this.canAddToStack(q, r),
+      topUnit: units[units.length - 1] // Most recently added unit (top of stack)
+    };
   }
 
   /**
