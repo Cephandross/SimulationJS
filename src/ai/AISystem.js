@@ -86,8 +86,8 @@ class AISystem {
     // Tick timing - configurable update frequency
     this.lastUpdate = 0;
     this.lastTickUpdate = null; // Track last game tick for tick-based updates
-    this.updateInterval = 5000; // Default: Update every 5 seconds (used when tick-based is false)
-    this.tickBasedUpdates = true; // When true, updates every game tick regardless of time
+    this.updateInterval = 3000; // Default: Update every 3 seconds (used when tick-based is false)
+    this.tickBasedUpdates = false; // When true, updates every game tick regardless of time
     
     // Initialize AI
     this.initialize();
