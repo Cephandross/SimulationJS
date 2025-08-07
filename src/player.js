@@ -16,6 +16,9 @@ class Player {
     this.units = [];      // Array of Unit instances
     this.population = 0;
     this.startCoords = null;
+    
+    // NEW: Track building counts for exponential scaling
+    this.buildingCounts = {};
   }
 
   addResources(typeOrMap, amount) {
@@ -45,7 +48,33 @@ class Player {
   }
 
   /**
-   * Try to place a building - now much simpler!
+   * Calculate scaled costs based on existing buildings of same type
+   */
+  getScaledBuildingCosts(BuildingClass) {
+    const tempBuilding = new BuildingClass([0, 0]); // Create temp instance for base costs
+    const baseCosts = tempBuilding.costs;
+    const buildingType = tempBuilding.type;
+    
+    // Count existing buildings of this type
+    const existingCount = this.buildingCounts[buildingType] || 0;
+    
+    // Apply exponential scaling: cost = baseCost * (multiplier ^ existingCount)
+    const multiplier = 1.5; // 50% increase per building
+    const scalingFactor = Math.pow(multiplier, existingCount);
+    
+    // Calculate scaled costs
+    const scaledCosts = {};
+    for (const [resource, amount] of Object.entries(baseCosts)) {
+      scaledCosts[resource] = Math.ceil(amount * scalingFactor);
+    }
+    
+    console.log(`💰 ${buildingType} #${existingCount + 1}: Base ${JSON.stringify(baseCosts)} → Scaled ${JSON.stringify(scaledCosts)} (${scalingFactor.toFixed(2)}x)`);
+    
+    return scaledCosts;
+  }
+
+  /**
+   * Try to place a building - now with exponential cost scaling!
    */
   build(BuildingClass, [q, r]) {
     // Check if placement is valid
@@ -54,20 +83,23 @@ class Player {
       return false;
     }
 
-    // Create temporary instance to check costs (no owner/scene to avoid sprite creation)
-    const tempBuilding = new BuildingClass([q, r]);
-    const costs = tempBuilding.costs;
+    // Get scaled costs instead of base costs
+    const scaledCosts = this.getScaledBuildingCosts(BuildingClass);
 
-    // Check affordability
-    if (!this.spendResources(costs)) {
-      console.warn(`❌ Cannot afford ${BuildingClass.name}: need`, costs);
+    // Check affordability with scaled costs
+    if (!this.spendResources(scaledCosts)) {
+      console.warn(`❌ Cannot afford ${BuildingClass.name}: need`, scaledCosts);
       return false;
     }
 
     // Create the actual building
     const building = new BuildingClass([q, r], this, this.scene);
     this.buildings.push(building);
-    console.log(`🏗️ ${this.name} started building ${building.type} at [${q}, ${r}]`);
+    
+    // Update building count for this type
+    this.buildingCounts[building.type] = (this.buildingCounts[building.type] || 0) + 1;
+    
+    console.log(`🏗️ ${this.name} built ${building.type} #${this.buildingCounts[building.type]} at [${q}, ${r}] for ${JSON.stringify(scaledCosts)}`);
     return true;
   }
 

@@ -8,7 +8,7 @@ class House extends Building {
       owner: owner,
       coords: coords,
       scene: scene,
-      costs: { wood:50, stone:20 },
+      costs: { wood: 120, stone: 60 },
       hitpoints: 100,
       buildTime: 4
     });
@@ -24,7 +24,7 @@ class LogCabin extends Building {
       owner: owner,
       coords: coords,
       scene: scene,
-      costs: { wood:100, stone:50 },
+      costs: { wood: 200, stone: 100 },
       hitpoints: 150,
       buildTime: 6
     });
