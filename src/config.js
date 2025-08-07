@@ -13,6 +13,10 @@ const TILE_SIZE = 72;       // Overall tile size (was 64)
 const GRID_SIZE = 400;      // Keep same for now
 const TICK_INTERVAL = 500;  // ms
 
+/** Unit stacking configuration */
+const MAX_STACK_SIZE = 5;   // Maximum units per hex
+const STACK_DISPLAY_LIMIT = 3; // Show first N units in UI, then "+" count
+
 const INDIVIDUAL_IMAGES = [
   { key: '003Clear1', file: '003Clear1.png' },
   { key: '003Clear2', file: '003Clear2.png' },

@@ -518,6 +518,433 @@ class AdminPanel extends BaseModal {
     }
   }
 
+  // ==========================================
+  // UNIT STACKING SYSTEM (NEW)
+  // ==========================================
+
+  /**
+   * NEW: Create unit stacking management section
+   */
+  createStackingSection() {
+    if (!this.godMode) return;
+
+    const section = document.createElement('div');
+    section.style.cssText = `
+      padding: 12px;
+      border-bottom: 1px solid rgb(75, 85, 99);
+      background: rgba(34, 197, 94, 0.1);
+    `;
+
+    const header = document.createElement('h3');
+    header.textContent = '📦 Unit Stacking System';
+    header.style.cssText = 'margin: 0 0 12px 0; color: white; font-size: 16px;';
+    section.appendChild(header);
+
+    // Stacking system status
+    const maxStackSize = typeof MAX_STACK_SIZE !== 'undefined' ? MAX_STACK_SIZE : 5;
+    const statusIndicator = document.createElement('div');
+    statusIndicator.style.cssText = `
+      background: rgba(34, 197, 94, 0.2);
+      padding: 8px;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      text-align: center;
+      font-size: 12px;
+      border: 1px solid #22c55e;
+    `;
+    statusIndicator.innerHTML = `
+      <div style="color: #22c55e; font-weight: bold;">
+        ✅ Stacking System Active
+      </div>
+      <div style="font-size: 10px; color: rgb(156, 163, 175); margin-top: 4px;">
+        Max stack size: ${maxStackSize} units
+      </div>
+    `;
+    section.appendChild(statusIndicator);
+
+    // Stacking control buttons
+    const stackButtons = document.createElement('div');
+    stackButtons.style.cssText = 'display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;';
+
+    const stackOptions = [
+      { label: '📦 Create Test Stack', action: () => this.createTestStack(), color: 'rgba(34, 197, 94, 0.8)' },
+      { label: '🔍 Show Stack Info', action: () => this.showStackInfo(), color: 'rgba(59, 130, 246, 0.8)' },
+      { label: '⚔️ Stack vs Stack Battle', action: () => this.simulateStackBattle(), color: 'rgba(239, 68, 68, 0.8)' },
+      { label: '🧹 Clear All Stacks', action: () => this.clearAllStacks(), color: 'rgba(107, 114, 128, 0.8)' }
+    ];
+
+    stackOptions.forEach(({ label, action, color }) => {
+      const btn = document.createElement('button');
+      btn.innerHTML = label;
+      btn.style.cssText = `
+        padding: 10px;
+        border: none;
+        border-radius: 4px;
+        background: ${color};
+        color: white;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 500;
+        transition: all 0.2s;
+      `;
+      
+      btn.onmouseover = () => {
+        btn.style.transform = 'scale(1.05)';
+        btn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
+      };
+      
+      btn.onmouseout = () => {
+        btn.style.transform = 'scale(1)';
+        btn.style.boxShadow = 'none';
+      };
+      
+      btn.onclick = action;
+      stackButtons.appendChild(btn);
+    });
+
+    section.appendChild(stackButtons);
+
+    // Stack statistics display
+    const statsContainer = document.createElement('div');
+    statsContainer.id = 'stack-stats-display';
+    statsContainer.style.cssText = `
+      background: rgba(31, 41, 55, 0.5);
+      border-radius: 4px;
+      padding: 8px;
+      font-size: 11px;
+      color: rgb(156, 163, 175);
+      line-height: 1.4;
+    `;
+    
+    this.updateStackStats(statsContainer);
+    section.appendChild(statsContainer);
+
+    this.contentArea.appendChild(section);
+  }
+
+  /**
+   * Create a test stack at a random location
+   */
+  createTestStack() {
+    if (!this.scene.gameWorld) {
+      this.showNotification('❌ Game world not available', 'error');
+      return;
+    }
+
+    try {
+      const players = this.scene.gameWorld.players;
+      if (players.length === 0) {
+        this.showNotification('❌ No players available to create units', 'error');
+        return;
+      }
+
+      // Pick a random location
+      const q = Math.floor(Math.random() * 20) - 10;
+      const r = Math.floor(Math.random() * 20) - 10;
+      
+      // Check if location can fit a stack
+      if (!this.scene.gameWorld.canAddToStack(q, r)) {
+        this.showNotification(`❌ Cannot create stack at [${q}, ${r}] - location full`, 'error');
+        return;
+      }
+
+      // Create multiple units of different types at the same location
+      const unitTypes = ['Warrior', 'Archer', 'Scout'];
+      const player = players[0];
+      let unitsCreated = 0;
+
+      unitTypes.forEach((unitType, index) => {
+        if (this.scene.gameWorld.canAddToStack(q, r)) {
+          const unit = new Unit({ 
+            type: unitType, 
+            coords: [q, r], 
+            owner: player, 
+            scene: this.scene 
+          });
+          
+          // Set basic combat stats
+          unit.attack = 5 + index * 2;
+          unit.defense = 3 + index;
+          unit.range = 1 + (index === 1 ? 1 : 0); // Archer has range 2
+          
+          player.units.push(unit);
+          unitsCreated++;
+        }
+      });
+
+      if (unitsCreated > 0) {
+        this.showNotification(`📦 Created test stack of ${unitsCreated} units at [${q}, ${r}]`, 'success');
+        this.updateStackStats(document.getElementById('stack-stats-display'));
+      } else {
+        this.showNotification('❌ Could not create any units in stack', 'error');
+      }
+
+    } catch (error) {
+      this.showNotification('❌ Failed to create test stack: ' + error.message, 'error');
+      console.error('Stack creation error:', error);
+    }
+  }
+
+  /**
+   * Show information about all stacks in the game
+   */
+  showStackInfo() {
+    if (!this.scene.gameWorld) {
+      this.showNotification('❌ Game world not available', 'error');
+      return;
+    }
+
+    const allUnits = this.scene.gameWorld.getAllUnits();
+    const stackLocations = new Map();
+
+    // Group units by location
+    allUnits.forEach(unit => {
+      const key = `${unit.coords[0]},${unit.coords[1]}`;
+      if (!stackLocations.has(key)) {
+        stackLocations.set(key, []);
+      }
+      stackLocations.get(key).push(unit);
+    });
+
+    // Find stacks with multiple units
+    const stacks = Array.from(stackLocations.entries())
+      .filter(([key, units]) => units.length > 1);
+
+    if (stacks.length === 0) {
+      this.showNotification('📦 No multi-unit stacks found in the game', 'info');
+      return;
+    }
+
+    // Show stack information
+    let message = `📦 Found ${stacks.length} stack(s):\\n\\n`;
+    stacks.forEach(([key, units]) => {
+      const [q, r] = key.split(',');
+      const stackInfo = this.scene.gameWorld.getStackInfo(parseInt(q), parseInt(r));
+      message += `[${q}, ${r}]: ${units.length} units\\n`;
+      if (stackInfo) {
+        stackInfo.composition.forEach(comp => {
+          message += `  • ${comp.count}x ${comp.type} (${comp.owner.name})\\n`;
+        });
+      }
+      message += '\\n';
+    });
+
+    this.showNotification(message, 'info');
+    console.log('Stack info:', stacks);
+  }
+
+  /**
+   * Simulate a battle between two stacks
+   */
+  simulateStackBattle() {
+    if (!this.battleSystemEnabled) {
+      this.showNotification('❌ Battle system not enabled', 'error');
+      return;
+    }
+
+    try {
+      const allUnits = this.scene.gameWorld.getAllUnits();
+      const players = [...new Set(allUnits.map(u => u.owner))];
+      
+      if (players.length < 2) {
+        this.showNotification('Need at least 2 players to simulate stack battle', 'error');
+        return;
+      }
+
+      // Find or create stacks for each player
+      let player1Stack = null;
+      let player2Stack = null;
+      
+      // Look for existing stacks first
+      const stackLocations = new Map();
+      allUnits.forEach(unit => {
+        const key = `${unit.coords[0]},${unit.coords[1]}`;
+        if (!stackLocations.has(key)) {
+          stackLocations.set(key, []);
+        }
+        stackLocations.get(key).push(unit);
+      });
+
+      const stacks = Array.from(stackLocations.entries())
+        .filter(([key, units]) => units.length > 1);
+
+      // Find stacks for different players
+      for (const [key, units] of stacks) {
+        const [q, r] = key.split(',').map(Number);
+        const player1Units = units.filter(u => u.owner === players[0]);
+        const player2Units = units.filter(u => u.owner === players[1]);
+        
+        if (player1Units.length > 0 && !player1Stack) {
+          player1Stack = { coords: [q, r], units: player1Units };
+        }
+        if (player2Units.length > 0 && !player2Stack) {
+          player2Stack = { coords: [q, r], units: player2Units };
+        }
+      }
+
+      // If no suitable stacks found, create them
+      if (!player1Stack || !player2Stack) {
+        this.showNotification('Creating test stacks for battle...', 'info');
+        
+        // Create player 1 stack
+        const q1 = 5, r1 = 5;
+        for (let i = 0; i < 2; i++) {
+          const unit = new Unit({ 
+            type: i === 0 ? 'Warrior' : 'Archer', 
+            coords: [q1, r1], 
+            owner: players[0], 
+            scene: this.scene 
+          });
+          unit.attack = 8; unit.defense = 4; unit.range = i === 1 ? 2 : 1;
+          players[0].units.push(unit);
+        }
+        player1Stack = { coords: [q1, r1], units: this.scene.gameWorld.getUnitsAt(q1, r1) };
+
+        // Create player 2 stack
+        const q2 = 6, r2 = 5;
+        for (let i = 0; i < 2; i++) {
+          const unit = new Unit({ 
+            type: i === 0 ? 'Scout' : 'Warrior', 
+            coords: [q2, r2], 
+            owner: players[1], 
+            scene: this.scene 
+          });
+          unit.attack = 7; unit.defense = 3; unit.range = 1;
+          players[1].units.push(unit);
+        }
+        player2Stack = { coords: [q2, r2], units: this.scene.gameWorld.getUnitsAt(q2, r2) };
+      }
+
+      // Start battle between stacks
+      const attacker = player1Stack.units[0];
+      const battle = this.scene.gameWorld.battleManager.startBattleAtHex(attacker, player2Stack.coords);
+      
+      if (battle) {
+        this.showNotification(
+          `⚔️ Stack battle started!\\n` +
+          `Player 1 stack: ${player1Stack.units.length} units\\n` +
+          `Player 2 stack: ${player2Stack.units.length} units`, 
+          'success'
+        );
+      } else {
+        this.showNotification('❌ Failed to start stack battle', 'error');
+      }
+
+    } catch (error) {
+      this.showNotification('❌ Stack battle simulation failed: ' + error.message, 'error');
+      console.error('Stack battle error:', error);
+    }
+  }
+
+  /**
+   * Clear all multi-unit stacks (spread units out)
+   */
+  clearAllStacks() {
+    if (!this.scene.gameWorld) {
+      this.showNotification('❌ Game world not available', 'error');
+      return;
+    }
+
+    try {
+      const allUnits = this.scene.gameWorld.getAllUnits();
+      const stackLocations = new Map();
+
+      // Group units by location
+      allUnits.forEach(unit => {
+        const key = `${unit.coords[0]},${unit.coords[1]}`;
+        if (!stackLocations.has(key)) {
+          stackLocations.set(key, []);
+        }
+        stackLocations.get(key).push(unit);
+      });
+
+      // Find and clear stacks
+      let stacksCleared = 0;
+      let unitsSpread = 0;
+
+      for (const [key, units] of stackLocations.entries()) {
+        if (units.length > 1) {
+          const [baseQ, baseR] = key.split(',').map(Number);
+          stacksCleared++;
+          
+          // Spread units in a spiral pattern around the original location
+          const spiralOffsets = [[0,0], [1,0], [0,1], [-1,0], [0,-1], [1,-1], [-1,1]];
+          
+          units.forEach((unit, index) => {
+            if (index === 0) return; // Leave first unit in original position
+            
+            const offsetIndex = (index - 1) % spiralOffsets.length;
+            const [dq, dr] = spiralOffsets[offsetIndex];
+            const newQ = baseQ + dq + Math.floor((index - 1) / spiralOffsets.length);
+            const newR = baseR + dr;
+            
+            // Check if new position is passable
+            if (this.scene.map && this.scene.map.getTile(newQ, newR)?.isPassable()) {
+              unit.setPosition(newQ, newR);
+              unitsSpread++;
+            }
+          });
+        }
+      }
+
+      if (stacksCleared > 0) {
+        this.showNotification(`🧹 Cleared ${stacksCleared} stack(s), spread ${unitsSpread} units`, 'success');
+        this.updateStackStats(document.getElementById('stack-stats-display'));
+      } else {
+        this.showNotification('📦 No multi-unit stacks found to clear', 'info');
+      }
+
+    } catch (error) {
+      this.showNotification('❌ Failed to clear stacks: ' + error.message, 'error');
+      console.error('Clear stacks error:', error);
+    }
+  }
+
+  /**
+   * Update stack statistics display
+   */
+  updateStackStats(container) {
+    if (!this.scene.gameWorld) {
+      container.innerHTML = 'Game world not available';
+      return;
+    }
+
+    const allUnits = this.scene.gameWorld.getAllUnits();
+    const stackLocations = new Map();
+
+    // Group units by location
+    allUnits.forEach(unit => {
+      const key = `${unit.coords[0]},${unit.coords[1]}`;
+      if (!stackLocations.has(key)) {
+        stackLocations.set(key, []);
+      }
+      stackLocations.get(key).push(unit);
+    });
+
+    const stacks = Array.from(stackLocations.values())
+      .filter(units => units.length > 1);
+    
+    const totalUnits = allUnits.length;
+    const unitsInStacks = stacks.reduce((sum, stack) => sum + stack.length, 0);
+    const singleUnits = totalUnits - unitsInStacks;
+    const maxStackSize = stacks.length > 0 ? Math.max(...stacks.map(s => s.length)) : 0;
+
+    container.innerHTML = `
+      <div>Total Units: <span style="color: #3b82f6;">${totalUnits}</span></div>
+      <div>Multi-unit Stacks: <span style="color: #22c55e;">${stacks.length}</span></div>
+      <div>Units in Stacks: <span style="color: #f59e0b;">${unitsInStacks}</span></div>
+      <div>Single Units: <span style="color: #6b7280;">${singleUnits}</span></div>
+      <div>Largest Stack: <span style="color: #ef4444;">${maxStackSize} units</span></div>
+    `;
+
+    if (stacks.length > 0) {
+      const stackInfo = stacks.slice(0, 3).map(stack => 
+        `[${stack[0].coords.join(',')}]: ${stack.length}`
+      ).join(', ');
+      container.innerHTML += `<div style="margin-top: 4px; font-size: 10px; color: rgb(156, 163, 175);">Examples: ${stackInfo}${stacks.length > 3 ? '...' : ''}</div>`;
+    }
+  }
+
   /**
    * NEW: Debug battles to console
    */
@@ -2185,6 +2612,11 @@ class AdminPanel extends BaseModal {
     // NEW: Battle System (only if god mode)
     if (this.godMode) {
       this.createBattleSection();
+    }
+
+    // NEW: Unit Stacking System (only if god mode)
+    if (this.godMode) {
+      this.createStackingSection();
     }
     
     // Time Controls
