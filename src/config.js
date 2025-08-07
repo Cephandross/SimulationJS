@@ -11,7 +11,7 @@ const ASSET_PATH = 'assets/hex_tiles/';
 const HEX_SIZE = 36;        // Radius (was 32)
 const TILE_SIZE = 72;       // Overall tile size (was 64)
 const GRID_SIZE = 400;      // Keep same for now
-const TICK_INTERVAL = 500;  // ms
+const TICK_INTERVAL = 5000;  // ms
 
 /** Unit stacking configuration */
 const MAX_STACK_SIZE = 5;   // Maximum units per hex

@@ -97,6 +97,9 @@ class BattleManager {
     console.log(`⚔️ Stack battle at [${q}, ${r}]: ${attackers.length} vs ${defenders.length}`);
     return this.startBattle(hex, attackers, defenders);
   }
+
+  /**
+   * Start a battle at the specified hex location
    * 
    * This method handles both new battle creation and reinforcement of existing battles.
    * If a battle already exists at the specified hex, new units are added to appropriate sides.

@@ -2982,7 +2982,7 @@ class AdminPanel extends BaseModal {
       this.createUnitControlSection(container);  
       this.createWorldControlSection(container);
     }
-  
+  }
 
   createResourcesTab(container) {
     if (this.godMode) {
@@ -2993,22 +2993,9 @@ class AdminPanel extends BaseModal {
       msgDiv.style.cssText = 'text-align: center; padding: 40px; color: #6b7280; font-style: italic;';
       container.appendChild(msgDiv);
     }
-
   }
 
   createSavesTab(container) {
-
-
-    // NEW: Unit Stacking System (only if god mode)
-    if (this.godMode) {
-      this.createStackingSection();
-    }
-    
-    // Time Controls
-    this.createTimeSection();
-    
-    // Entity Spawning (only if god mode) - Enhanced with battle units
-
     if (this.godMode) {
       this.createSaveLoadSection(container);
     } else {
@@ -3018,13 +3005,6 @@ class AdminPanel extends BaseModal {
       container.appendChild(msgDiv);
     }
   }
-    if (this.godMode) {
-      this.createWorldSection();
-    }
-    
-    // Debug Information - Enhanced with battle info
-    this.createDebugSection();
-  };
 
   createGodModeSection(container) {
     const section = document.createElement('div');
