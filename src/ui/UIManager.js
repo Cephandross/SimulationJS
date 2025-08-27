@@ -754,7 +754,7 @@ class UIManager {
     // Emit event for SelectionUI to handle
     this.scene.events.emit('entitySelected', entity);
     
-    console.log(`🎯 Selected ${entity.type} at [${entity.coords[0]}, ${entity.coords[1]}]`);
+    
   }
 
   selectTile(tile) {
@@ -770,18 +770,19 @@ class UIManager {
     // Emit event for tile selection
     this.scene.events.emit('tileSelected', tile);
     
-    console.log(`🎯 Selected tile [${tile.q}, ${tile.r}] (${tile.biome})`);
+    
   }
 
   clearSelection() {
     if (this.selectedEntity) {
-      console.log(`❌ Cleared entity selection`);
+
+      
       this.selectedEntity = null;
       this.scene.events.emit('selectionCleared');
     }
     
     if (this.selectedTile) {
-      console.log(`❌ Cleared tile selection`);
+      
       this.selectedTile = null;
       this.scene.events.emit('tileSelectionCleared');
     }
@@ -794,7 +795,7 @@ class UIManager {
 
   toggleAdminPanel() {
     this.adminPanel.toggle();
-    console.log(`⚡ Admin Panel ${this.adminPanel.isVisible ? 'opened' : 'closed'}`);
+    
   }
 
   openAdminPanel() {
@@ -807,7 +808,7 @@ class UIManager {
 
   // Building placement methods - Preserved exactly
   startBuildingPlacement(building) {
-    console.log(`🏗️ Starting placement of ${building.name}`);
+    
     this.placementMode = building;
     this.createGhostPreview();
   }
@@ -855,7 +856,7 @@ class UIManager {
     const success = humanPlayer.build(buildingClass, [q, r]);
     
     if (success) {
-      console.log(`✅ Successfully placed ${this.placementMode.name} at [${q}, ${r}]`);
+      
       this.scene.events.emit('buildingPlaced', { building: this.placementMode, coords: [q, r] });
       
       // Keep placement mode active for rapid building
@@ -879,7 +880,7 @@ class UIManager {
       targets: errorText,
       alpha: 0,
       y: y - 30,
-      duration: 1000,
+      duration: 5000,
       onComplete: () => errorText.destroy()
     });
   }

@@ -1,38 +1,53 @@
-// src/ui/AdminPanel.js - Modern Admin Panel with Tabbed Interface
+// src/ui/AdminPanel.js - Complete with Save/Load and Battle System Integration
 
 class AdminPanel extends BaseModal {
   constructor(scene) {
     super(scene, {
-      width: 420,
-      height: 700,
-      x: window.innerWidth - 440,
-      y: 60,
+      width: 380,
+      height: 850, // Reduced height to avoid overlap
+      x: window.innerWidth,
+      y: 60, // Moved down to avoid top player bar
       title: '⚡ Admin Panel',
-      closable: true,
-      tabs: [
-        { id: 'overview', label: 'Overview', icon: '📊' },
-        { id: 'players', label: 'Players', icon: '👥' },
-        { id: 'ai', label: 'AI Systems', icon: '🤖' },
-        { id: 'battle', label: 'Battle', icon: '⚔️' },
-        { id: 'world', label: 'World', icon: '🌍' },
-        { id: 'resources', label: 'Resources', icon: '💰' },
-        { id: 'saves', label: 'Save/Load', icon: '💾' }
-      ]
+      closable: true
     });
 
     this.selectedPlayer = null;
     this.timeMultiplier = 1;
     this.godMode = false;
     this.autoSaveEnabled = false;
-    this.currentSaveSystem = 'quick';
+    this.currentSaveSystem = 'quick'; // 'quick' or 'full'
     
-    // Battle system state
+    // NEW: Battle system state
     this.battleSystemEnabled = true;
     
-    this.createPanelContent();
-    this.setupEventHandlers();
-    this.setFooterText('Modern Admin Panel v2.0 - Use tabs for navigation');
-  }
+    // NEW: Tab management
+    this.currentTab = 'overview';
+    this.tabs = {
+      'overview': { icon: '📊', label: 'Overview', enabled: true },
+      'players': { icon: '👥', label: 'Players', enabled: true },
+      'ai': { icon: '🤖', label: 'AI Systems', enabled: true },
+      'battle': { icon: '⚔️', label: 'Battle', enabled: true },
+      'world': { icon: '🌍', label: 'World', enabled: true },
+      'resources': { icon: '💰', label: 'Resources', enabled: false }, // only in god mode
+      'saves': { icon: '💾', label: 'Save/Load', enabled: false } // only in god mode
+    };
+    
+    // Override container styling for better visibility
+    this.container.style.cssText = `
+      position: fixed;
+      left: ${window.innerWidth - 400}px;
+      top: 60px;
+      width: 380px;
+      height: 850px;
+      background: rgba(17, 24, 39, 0.98);
+      border: 2px solid rgb(75, 85, 99);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      z-index: 2000;
+      font-family: Arial, sans-serif;
+      color: white;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
       backdrop-filter: blur(10px);
       display: none;
       overflow: hidden;
@@ -174,7 +189,7 @@ class AdminPanel extends BaseModal {
         `;
         
         btn.onmouseover = () => {
-          btn.style.transform = 'scale(1.05)';
+          btn.style.transform = 'scale(1.5)';
           btn.style.boxShadow = '0 2px 8px rgba(0,0,0,0.3)';
         };
         
@@ -300,67 +315,67 @@ class AdminPanel extends BaseModal {
       console.log('MountedArcher available:', typeof MountedArcher !== 'undefined');
       
       // Player 1 army (Red)
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 2; i++) {
         const pos1 = [army1Pos[0], army1Pos[1] + i];
         const pos2 = [army1Pos[0] - 1, army1Pos[1] + i];
         
-        console.log(`Attempting to spawn FootSoldier for Player1 at [${pos1[0]}, ${pos1[1]}]`);
+        
         if (typeof FootSoldier !== 'undefined') {
           const unit = player1.spawnUnit(FootSoldier, pos1);
           if (unit) {
             totalSpawned++;
-            console.log(`✓ Spawned FootSoldier at [${pos1[0]}, ${pos1[1]}]`);
+            
           } else {
-            console.log(`✗ Failed to spawn FootSoldier at [${pos1[0]}, ${pos1[1]}]`);
+            
           }
         }
         
-        console.log(`Attempting to spawn MountedArcher for Player1 at [${pos2[0]}, ${pos2[1]}]`);
+        
         if (typeof MountedArcher !== 'undefined') {
           const unit = player1.spawnUnit(MountedArcher, pos2);
           if (unit) {
             totalSpawned++;
-            console.log(`✓ Spawned MountedArcher at [${pos2[0]}, ${pos2[1]}]`);
+            
           } else {
-            console.log(`✗ Failed to spawn MountedArcher at [${pos2[0]}, ${pos2[1]}]`);
+            
           }
         }
       }
 
       // Player 2 army (Blue)  
-      for (let i = 0; i < 3; i++) {
+      for (let i = 0; i < 2; i++) {
         const pos1 = [army2Pos[0], army2Pos[1] + i];
         const pos2 = [army2Pos[0] + 1, army2Pos[1] + i];
         
-        console.log(`Attempting to spawn FootSoldier for Player2 at [${pos1[0]}, ${pos1[1]}]`);
+        
         if (typeof FootSoldier !== 'undefined') {
           const unit = player2.spawnUnit(FootSoldier, pos1);
           if (unit) {
             totalSpawned++;
-            console.log(`✓ Spawned FootSoldier at [${pos1[0]}, ${pos1[1]}]`);
+            
           } else {
-            console.log(`✗ Failed to spawn FootSoldier at [${pos1[0]}, ${pos1[1]}]`);
+            
           }
         }
         
-        console.log(`Attempting to spawn MountedArcher for Player2 at [${pos2[0]}, ${pos2[1]}]`);
+        
         if (typeof MountedArcher !== 'undefined') {
           const unit = player2.spawnUnit(MountedArcher, pos2);
           if (unit) {
             totalSpawned++;
-            console.log(`✓ Spawned MountedArcher at [${pos2[0]}, ${pos2[1]}]`);
+            
           } else {
-            console.log(`✗ Failed to spawn MountedArcher at [${pos2[0]}, ${pos2[1]}]`);
+            
           }
         }
       }
 
       this.showNotification(`🗡️ Test armies spawned! ${totalSpawned} units created`, 'success');
-      console.log(`🗡️ Test armies spawned (cleared ${totalCleared}, spawned ${totalSpawned})`);
+      
       
     } catch (error) {
       this.showNotification('❌ Failed to spawn armies: ' + error.message, 'error');
-      console.error('Army spawning error:', error);
+      
     }
     
     this.buildInterface(); // Refresh the interface
@@ -402,7 +417,7 @@ class AdminPanel extends BaseModal {
       attacker.setPosition(defX + 1, defY);
       
       // Start battle
-      console.log(`⚔️ Starting test battle: ${attacker.type} vs ${defender.type}`);
+      
       const battleStarted = attacker.attackUnit(defender);
       
       if (battleStarted) {

@@ -109,8 +109,8 @@ class SelectionUI {
           </div>
           ` : '<div></div>'}
         </div>
-      `;
-    } else {
+      `;    } 
+      else {
       // Unit
       html = `
         <div style="color: #${this.selectedEntity.owner.color.toString(16).padStart(6, '0')}; font-weight: bold; margin-bottom: 10px; display: flex; align-items: center;">
